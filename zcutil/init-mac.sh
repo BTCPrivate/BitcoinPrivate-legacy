@@ -125,12 +125,12 @@ EOF
 main
 rm -f /tmp/fetch_params.lock
 
-if [ ! -f "$HOME/Library/Application Support/Zclassic/zclassic.conf" ]; then
-    echo "Creating zclassic.conf"
-    mkdir -p "$HOME/Library/Application Support/Zclassic/"
-    echo "rpcuser=zcashrpc" > ~/Library/Application\ Support/Zclassic/zclassic.conf
+if [ ! -f "$HOME/Library/Application Support/BTCprivate/btcprivate.conf" ]; then
+    echo "Creating btcprivate.conf"
+    mkdir -p "$HOME/Library/Application Support/BTCprivate/"
+    echo "rpcuser=zcashrpc" > ~/Library/Application\ Support/BTCprivate/btcprivate.conf
     PASSWORD=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-    echo "rpcpassword=$PASSWORD" >> "$HOME/Library/Application Support/Zclassic/zclassic.conf"
+    echo "rpcpassword=$PASSWORD" >> "$HOME/Library/Application Support/BTCprivate/btcprivate.conf"
     echo "Complete!"
 fi
 
