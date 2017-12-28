@@ -2,8 +2,8 @@
 *.deb
 *.exe
 src/bitcoin
-src/zcashd
-src/zcash-cli
+src/btcpd
+src/btcp-cli
 src/zcash-gtest
 src/zcash-tx
 src/test/test_bitcoin

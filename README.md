@@ -21,11 +21,11 @@ sudo apt-get install \
 Install
 ```{r, engine='bash'}
 # Build
-./zcutil/build.sh -j$(nproc)
+./btcputil/build.sh -j$(nproc)
 # fetch key
-./zcutil/fetch-params.sh
+./btcputil/fetch-params.sh
 # Run
-./src/zcashd
+./src/btcpd
 ```
 
 ### Windows
@@ -40,7 +40,7 @@ sudo apt-get install \
 Install (Cross-Compiled, building on Windows is not supported yet)
 ```{r, engine='bash'}
 # Build
-./zcutil/build-win.sh -j$(nproc)
+./btcputil/build-win.sh -j$(nproc)
 ```
 The exe will save to `src` which you can then move to a windows machine
 
@@ -59,11 +59,11 @@ brew install gcc5 --without-multilib
 Install
 ```{r, engine='bash'}
 # Build
-./zcutil/build-mac.sh -j$(nproc)
+./btcputil/build-mac.sh -j$(nproc)
 # fetch key
-./zcutil/fetch-params.sh
+./btcputil/fetch-params.sh
 # Run
-./src/zcashd
+./src/btcpd
 ```
 
 About
@@ -120,7 +120,7 @@ Building
 --------
 
 Build Zcash along with most dependencies from source by running
-./zcutil/build.sh. Currently only Linux is officially supported.
+./btcputil/build.sh. Currently only Linux is officially supported.
 
 License
 -------

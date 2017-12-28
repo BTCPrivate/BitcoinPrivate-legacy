@@ -7,7 +7,7 @@ SHA256CMD="$(command -v sha256sum || echo shasum)"
 SHA256ARGS="$(command -v sha256sum >/dev/null || echo '-a 256')"
 
 function zcash_rpc {
-    ./src/zcash-cli -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 "$@"
+    ./src/btcp-cli -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 "$@"
 }
 
 function zcash_rpc_slow {
@@ -24,53 +24,53 @@ function zcash_rpc_wait_for_start {
     zcash_rpc -rpcwait getinfo > /dev/null
 }
 
-function zcashd_generate {
+function btcpd_generate {
     zcash_rpc generate 101 > /dev/null
 }
 
-function zcashd_start {
+function btcpd_start {
     rm -rf "$DATADIR"
     mkdir -p "$DATADIR/regtest"
-    touch "$DATADIR/zcash.conf"
-    ./src/zcashd -regtest -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 -showmetrics=0 &
-    ZCASHD_PID=$!
+    touch "$DATADIR/btcprivate.conf"
+    ./src/btcpd -regtest -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 -showmetrics=0 &
+    BTCPD_PID=$!
     zcash_rpc_wait_for_start
 }
 
-function zcashd_stop {
+function btcpd_stop {
     zcash_rpc stop > /dev/null
-    wait $ZCASHD_PID
+    wait $BTCPD_PID
 }
 
-function zcashd_massif_start {
+function btcpd_massif_start {
     rm -rf "$DATADIR"
     mkdir -p "$DATADIR/regtest"
-    touch "$DATADIR/zcash.conf"
+    touch "$DATADIR/btcprivate.conf"
     rm -f massif.out
-    valgrind --tool=massif --time-unit=ms --massif-out-file=massif.out ./src/zcashd -regtest -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 -showmetrics=0 &
-    ZCASHD_PID=$!
+    valgrind --tool=massif --time-unit=ms --massif-out-file=massif.out ./src/btcpd -regtest -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 -showmetrics=0 &
+    BTCPD_PID=$!
     zcash_rpc_wait_for_start
 }
 
-function zcashd_massif_stop {
+function btcpd_massif_stop {
     zcash_rpc stop > /dev/null
-    wait $ZCASHD_PID
+    wait $BTCPD_PID
     ms_print massif.out
 }
 
-function zcashd_valgrind_start {
+function btcpd_valgrind_start {
     rm -rf "$DATADIR"
     mkdir -p "$DATADIR/regtest"
-    touch "$DATADIR/zcash.conf"
+    touch "$DATADIR/btcprivate.conf"
     rm -f valgrind.out
-    valgrind --leak-check=yes -v --error-limit=no --log-file="valgrind.out" ./src/zcashd -regtest -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 -showmetrics=0 &
-    ZCASHD_PID=$!
+    valgrind --leak-check=yes -v --error-limit=no --log-file="valgrind.out" ./src/btcpd -regtest -datadir="$DATADIR" -rpcuser=user -rpcpassword=password -rpcport=5983 -showmetrics=0 &
+    BTCPD_PID=$!
     zcash_rpc_wait_for_start
 }
 
-function zcashd_valgrind_stop {
+function btcpd_valgrind_stop {
     zcash_rpc stop > /dev/null
-    wait $ZCASHD_PID
+    wait $BTCPD_PID
     cat valgrind.out
 }
 
@@ -86,7 +86,7 @@ EOF
         ARCHIVE_RESULT=1
     fi
     if [ $ARCHIVE_RESULT -ne 0 ]; then
-        zcashd_stop
+        btcpd_stop
         echo
         echo "Please generate it using qa/zcash/create_benchmark_archive.py"
         echo "and place it in the base directory of the repository."
@@ -101,15 +101,15 @@ case "$1" in
     *)
         case "$2" in
             verifyjoinsplit)
-                zcashd_start
+                btcpd_start
                 RAWJOINSPLIT=$(zcash_rpc zcsamplejoinsplit)
-                zcashd_stop
+                btcpd_stop
         esac
 esac
 
 case "$1" in
     time)
-        zcashd_start
+        btcpd_start
         case "$2" in
             sleep)
                 zcash_rpc zcbenchmark sleep 10
@@ -143,14 +143,14 @@ case "$1" in
                 zcash_rpc zcbenchmark connectblockslow 10
                 ;;
             *)
-                zcashd_stop
+                btcpd_stop
                 echo "Bad arguments."
                 exit 1
         esac
-        zcashd_stop
+        btcpd_stop
         ;;
     memory)
-        zcashd_massif_start
+        btcpd_massif_start
         case "$2" in
             sleep)
                 zcash_rpc zcbenchmark sleep 1
@@ -181,15 +181,15 @@ case "$1" in
                 zcash_rpc zcbenchmark connectblockslow 1
                 ;;
             *)
-                zcashd_massif_stop
+                btcpd_massif_stop
                 echo "Bad arguments."
                 exit 1
         esac
-        zcashd_massif_stop
+        btcpd_massif_stop
         rm -f massif.out
         ;;
     valgrind)
-        zcashd_valgrind_start
+        btcpd_valgrind_start
         case "$2" in
             sleep)
                 zcash_rpc zcbenchmark sleep 1
@@ -220,11 +220,11 @@ case "$1" in
                 zcash_rpc zcbenchmark connectblockslow 1
                 ;;
             *)
-                zcashd_valgrind_stop
+                btcpd_valgrind_stop
                 echo "Bad arguments."
                 exit 1
         esac
-        zcashd_valgrind_stop
+        btcpd_valgrind_stop
         rm -f valgrind.out
         ;;
     valgrind-tests)
