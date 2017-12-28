@@ -1,5 +1,5 @@
 Building Zcash
 
-See the Zcash github wiki (https://github.com/zcash/zcash/wiki) for instructions on building zcashd,
+See the Bitcoin Private github wiki (https://github.com/BTCPrivate/BitcoinPrivate/wiki) for instructions on building btcpd,
 the intended-for-services, no-graphical-interface, reference
-implementation of Zcash.
+implementation of Bitcoin Private.
