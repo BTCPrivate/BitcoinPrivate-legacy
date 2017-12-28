@@ -120,7 +120,7 @@ Building
 --------
 
 Build Zcash along with most dependencies from source by running
-./zcutil/build.sh. Currently only Linux is officially supported.
+`./zcutil/build.sh`. Currently only Linux is officially supported.
 
 License
 -------
