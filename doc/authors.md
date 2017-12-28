@@ -1,4 +1,4 @@
-Zcash Contributors
+BTCPrivate Contributors
 ==================
 
 Jack Grigg (428)

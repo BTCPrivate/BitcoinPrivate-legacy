@@ -59,7 +59,7 @@ brew install gcc5 --without-multilib
 Install
 ```{r, engine='bash'}
 # Build
-./btcputil/build-mac.sh -j$(nproc)
+./btcputil/build-mac.sh -j$(sysctl -n hw.physicalcpu)
 # fetch key
 ./btcputil/fetch-params.sh
 # Run
@@ -120,7 +120,7 @@ Building
 --------
 
 Build Zcash along with most dependencies from source by running
-./btcputil/build.sh. Currently only Linux is officially supported.
+`./btcputil/build.sh`. Currently only Linux is officially supported.
 
 License
 -------
