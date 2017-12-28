@@ -3,13 +3,13 @@
 set -eu -o pipefail
 
 # Allow user overrides to $MAKE. Typical usage for users who need it:
-#   MAKE=gmake ./zcutil/build.sh -j$(nproc)
+#   MAKE=gmake ./btcputil/build.sh -j$(nproc)
 if [[ -z "${MAKE-}" ]]; then
     MAKE=make
 fi
 
 # Allow overrides to $BUILD and $HOST for porters. Most users will not need it.
-#   BUILD=i686-pc-linux-gnu ./zcutil/build.sh
+#   BUILD=i686-pc-linux-gnu ./btcputil/build.sh
 if [[ -z "${BUILD-}" ]]; then
     BUILD=x86_64-unknown-linux-gnu
 fi

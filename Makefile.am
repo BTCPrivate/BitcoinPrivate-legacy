@@ -12,8 +12,8 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libzcashconsensus.pc
 endif
 
-BITCOIND_BIN=$(top_builddir)/src/zcashd$(EXEEXT)
-BITCOIN_CLI_BIN=$(top_builddir)/src/zcash-cli$(EXEEXT)
+BITCOIND_BIN=$(top_builddir)/src/btcpd$(EXEEXT)
+BITCOIN_CLI_BIN=$(top_builddir)/src/btcp-cli$(EXEEXT)
 BITCOIN_WIN_INSTALLER=$(PACKAGE)-$(PACKAGE_VERSION)-win$(WINDOWS_BITS)-setup$(EXEEXT)
 
 ##OSX_APP=Bitcoin-Qt.app
@@ -267,8 +267,8 @@ check-local:
 	@qa/pull-tester/run-bitcoind-for-test.sh $(JAVA) -jar $(JAVA_COMPARISON_TOOL) qa/tmp/compTool $(COMPARISON_TOOL_REORG_TESTS) 2>&1
 endif
 
-dist_bin_SCRIPTS = zcutil/fetch-params.sh
-dist_noinst_SCRIPTS = autogen.sh zcutil/build-debian-package.sh zcutil/build.sh
+dist_bin_SCRIPTS = btcputil/fetch-params.sh
+dist_noinst_SCRIPTS = autogen.sh btcputil/build-debian-package.sh btcputil/build.sh
 
 EXTRA_DIST = $(top_srcdir)/share/genbuild.sh qa/pull-tester/rpc-tests.sh qa/pull-tester/run-bitcoin-cli qa/rpc-tests qa/zcash $(DIST_DOCS) $(BIN_CHECKS)
 
