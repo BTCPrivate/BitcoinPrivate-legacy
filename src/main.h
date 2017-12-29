@@ -527,4 +527,12 @@ namespace Consensus {
 bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, const Consensus::Params& consensusParams);
 }
 
+#define FORK_CB_INPUT //Temporary - should be set via build parameters
+#ifdef FORK_CB_INPUT
+#define FORK_BLOCK_HEIGHT_START 1000000 //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
+                                        // I don't belive it should be set via paramter or env variable
+//#define FORK_BLOCK_HEIGHT_END FORK_BLOCK_HEIGHT_START + 65000
+#define FORK_COINBASE_PER_BLOCK 1000
+#endif //FORK_CB_INPUT
+
 #endif // BITCOIN_MAIN_H
