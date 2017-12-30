@@ -71,11 +71,9 @@ size_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 
-#define FORK_BLOCK_HEIGHT_START 1000000 //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
-                                        // I don't belive it should be set via paramter or env variable
-#define FORK_BLOCK_HEIGHT_END FORK_BLOCK_HEIGHT_START + 65000
-#define FORK_COINBASE_PER_BLOCK 1000
+#ifdef FORK_CB_INPUT
 bool bForking = false;
+#endif //FORK_CB_INPUT
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying and mining) */
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
@@ -3035,18 +3033,22 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
         return state.DoS(100, error("CheckBlock(): first tx is not coinbase"),
                          REJECT_INVALID, "bad-cb-missing");
 
-    if (!bForking) {
+#ifdef FORK_CB_INPUT
+    if (bForking) {
+        //This blocks might have up to FORK_COINBASE_PER_BLOCK coinbases
+        for (unsigned int i = FORK_COINBASE_PER_BLOCK; i < block.vtx.size(); i++)
+            if (block.vtx[i].IsCoinBase())
+                return state.DoS(100, error("CheckBlock(): it is forking block - more than 1000 coinbase"),
+                                REJECT_INVALID, "bad-cb-multiple");
+    } else {
+#endif //FORK_CB_INPUT
         for (unsigned int i = 1; i < block.vtx.size(); i++)
             if (block.vtx[i].IsCoinBase())
                 return state.DoS(100, error("CheckBlock(): more than one coinbase"),
                                 REJECT_INVALID, "bad-cb-multiple");
-    } else {
-        //This blocks might have up to 1000 coinbases
-        for (unsigned int i = 1; i < block.vtx.size(); i++)
-            if (block.vtx[i].IsCoinBase() && i >= FORK_COINBASE_PER_BLOCK)
-                return state.DoS(100, error("CheckBlock(): it is frorking block - more than 1000 coinbase"),
-                                REJECT_INVALID, "bad-cb-multiple");
+#ifdef FORK_CB_INPUT
     }
+#endif //FORK_CB_INPUT
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
         if (!CheckTransaction(tx, state, verifier))
@@ -3304,8 +3306,9 @@ bool TestBlockValidity(CValidationState &state, const CBlock& block, CBlockIndex
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
 
-    unsigned int nHeight = pindexPrev->nHeight + 1;
-    bForking = (nHeight >= FORK_BLOCK_HEIGHT_START && nHeight < FORK_BLOCK_HEIGHT_END);
+#ifdef FORK_CB_INPUT
+    bForking = (pindexPrev->nHeight + 1 >= FORK_BLOCK_HEIGHT_START /*&& nHeight < FORK_BLOCK_HEIGHT_END*/);
+#endif //FORK_CB_INPUT
     
     if (!CheckBlock(block, state, verifier, fCheckPOW, fCheckMerkleRoot))
         return false;
