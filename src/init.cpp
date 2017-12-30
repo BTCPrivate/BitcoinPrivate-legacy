@@ -492,6 +492,11 @@ std::string HelpMessage(HelpMessageMode mode)
     if (GetBoolArg("-help-debug", false))
         strUsage += HelpMessageOpt("-blockversion=<n>", strprintf("Override block version to test forking scenarios (default: %d)", (int)CBlock::CURRENT_VERSION));
 
+#ifdef FORK_CB_INPUT
+    strUsage += HelpMessageGroup(_("Fork :"));
+    strUsage += HelpMessageOpt("-utxo-file=<file>", _("Specify input utxo file"));
+#endif //FORK_CB_INPUT
+
 #ifdef ENABLE_MINING
     strUsage += HelpMessageGroup(_("Mining options:"));
     strUsage += HelpMessageOpt("-gen", strprintf(_("Generate coins (default: %u)"), 0));

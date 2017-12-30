@@ -40,6 +40,11 @@
 #endif
 #include <mutex>
 
+#ifdef FORK_CB_INPUT
+#include <fstream>
+#endif //FORK_CB_INPUT
+
+
 using namespace std;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -107,8 +112,29 @@ void UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, 
 }
 
 #ifdef FORK_CB_INPUT
+uint64_t bytes2uint64(char *array)
+{
+    uint64_t x = 
+    static_cast<uint64_t>(array[0])       & 0x00000000000000ff |
+    static_cast<uint64_t>(array[1]) << 8  & 0x000000000000ff00 |
+    static_cast<uint64_t>(array[2]) << 16 & 0x0000000000ff0000 |
+    static_cast<uint64_t>(array[3]) << 24 & 0x00000000ff000000 |
+    static_cast<uint64_t>(array[4]) << 32 & 0x000000ff00000000 |
+    static_cast<uint64_t>(array[5]) << 40 & 0x0000ff0000000000 |
+    static_cast<uint64_t>(array[6]) << 48 & 0x00ff000000000000 |
+    static_cast<uint64_t>(array[7]) << 56 & 0xff00000000000000;
+    return x;
+}
 CBlockTemplate* CreateNewForkBlock()
 {
+    std::string utxo_path = GetArg("-utxo-file","");
+
+    boost::filesystem::path utxo_file(utxo_path);
+    if (utxo_file.empty() || !utxo_file.has_filename())
+    {
+        throw std::runtime_error("CreateNewForkBlock(): UTXO file is not provided, add utxo-file=<path-to-utxop-file> to ypur btcprivate.conf and restart");
+    }
+
     const CChainParams& chainparams = Params();
     // Create new block
     std::unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -134,8 +160,23 @@ CBlockTemplate* CreateNewForkBlock()
     uint64_t nBlockSize = 1000;
     uint64_t nBlockTx = 0;
 
-    //TODO: READ COINBASE FROM FILE FILE
-    for(int i=0; i<1000; i++) {
+    std::ifstream if_utxo(utxo_path, std::ios::binary | std::ios::in);
+    if (!if_utxo.is_open()) {
+        throw std::runtime_error("CreateNewForkBlock(): Cannot open UTXO file - " + utxo_path);
+    }
+
+    char line[1000] = {};
+    while (if_utxo.getline(line, 100, '\n')) {
+
+        uint64_t ammount = bytes2uint64(line);
+        uint64_t pubsize = bytes2uint64(line+8);
+
+        if (pubsize != 67) { //??? TODO: need to have a way to filter invalid records ???
+            LogPrintf("CreateNewBlock(): txn %u seems to be invalid pubsize is %u\n", nBlockTx, pubsize);
+            continue;
+        } else {
+            LogPrintf("CreateNewBlock(): txn %u has ammount %u\n", nBlockTx, ammount);
+        }
 
         // Add coinbase tx's
         CMutableTransaction txNew;
@@ -143,12 +184,12 @@ CBlockTemplate* CreateNewForkBlock()
         txNew.vin[0].prevout.SetNull();
         txNew.vout.resize(1);
         txNew.vout[0].scriptPubKey = CScript(); //PUB KEY READ FROM FILE
-        txNew.vout[0].nValue = 10; //VALUE READ FROM FILE
+        txNew.vout[0].nValue = ammount;
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
         unsigned int nTxSize = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
         if (nBlockSize + nTxSize >= nBlockMaxSize)
-            continue;
+            break;//We cannot skip transaction here as in regular case - or we ca nloose the skipped transaction
 
         pblock->vtx.push_back(txNew);
         pblocktemplate->vTxFees.push_back(-1); // updated at end
@@ -176,7 +217,7 @@ CBlockTemplate* CreateNewForkBlock()
 
     CValidationState state;
     if (!TestBlockValidity(state, *pblock, pindexPrev, false, false))
-        throw std::runtime_error("CreateNewBlock(): TestBlockValidity failed");
+        throw std::runtime_error("CreateNewForkBlock(): TestBlockValidity failed");
 
     return pblocktemplate.release();
 }
@@ -616,16 +657,27 @@ void static BitcoinMiner()
             }
 
             CBlockIndex* pindexPrev = chainActive.Tip();
+            CBlock *pblock = nullptr;
+            unsigned int nTransactionsUpdatedLast = 0;
 
 #ifdef FORK_CB_INPUT
             bool bForking = (pindexPrev->nHeight >= FORK_BLOCK_HEIGHT_START);
-            unique_ptr<CBlockTemplate> pblocktemplate(CreateNewForkBlock());
+            if (bForking) {
+                unique_ptr<CBlockTemplate> pblocktemplate(CreateNewForkBlock());
+                if (!pblocktemplate.get()) {
+                    LogPrintf("Error in BTCPrivate Miner: Cannot create Frok Block\n");
+                }
+                pblock = &pblocktemplate->block;
+
+                LogPrintf("Running BTCPrivate Miner with %u forking transactions in block (%u bytes)\n", pblock->vtx.size(),
+                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+            } else {
 #endif //FORK_CB_INPUT
 
             //
             // Create new block
             //
-            unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
+            nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
 
 
 #ifdef ENABLE_WALLET
@@ -643,17 +695,15 @@ void static BitcoinMiner()
                 }
                 return;
             }
-            CBlock *pblock = &pblocktemplate->block;
-            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+            pblock = &pblocktemplate->block;
 
-#ifdef FORK_CB_INPUT
-            if (bForking)
-                LogPrintf("Running BTCPrivate Miner with %u forking transactions in block (%u bytes)\n", pblock->vtx.size(),
-                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
-            else
-#endif //FORK_CB_INPUT
             LogPrintf("Running BTCPrivate Miner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                 ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+#ifdef FORK_CB_INPUT
+            } //else
+#endif //FORK_CB_INPUT
+
+            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
             //
             // Search
@@ -785,8 +835,15 @@ void static BitcoinMiner()
                     break;
                 if ((UintToArith256(pblock->nNonce) & 0xffff) == 0xffff)
                     break;
+#ifdef FORK_CB_INPUT
+                if (!bForking) {
+#endif //FORK_CB_INPUT
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                     break;
+#ifdef FORK_CB_INPUT
+                }
+#endif //FORK_CB_INPUT
+
                 if (pindexPrev != chainActive.Tip())
                     break;
 

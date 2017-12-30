@@ -3034,17 +3034,17 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
                          REJECT_INVALID, "bad-cb-missing");
 
 #ifdef FORK_CB_INPUT
-    if (!bForking) {
-        for (unsigned int i = 1; i < block.vtx.size(); i++)
-            if (block.vtx[i].IsCoinBase())
-                return state.DoS(100, error("CheckBlock(): more than one coinbase"),
-                                REJECT_INVALID, "bad-cb-multiple");
-    } else {
-#endif //FORK_CB_INPUT
+    if (bForking) {
         //This blocks might have up to FORK_COINBASE_PER_BLOCK coinbases
         for (unsigned int i = FORK_COINBASE_PER_BLOCK; i < block.vtx.size(); i++)
             if (block.vtx[i].IsCoinBase())
                 return state.DoS(100, error("CheckBlock(): it is forking block - more than 1000 coinbase"),
+                                REJECT_INVALID, "bad-cb-multiple");
+    } else {
+#endif //FORK_CB_INPUT
+        for (unsigned int i = 1; i < block.vtx.size(); i++)
+            if (block.vtx[i].IsCoinBase())
+                return state.DoS(100, error("CheckBlock(): more than one coinbase"),
                                 REJECT_INVALID, "bad-cb-multiple");
 #ifdef FORK_CB_INPUT
     }
