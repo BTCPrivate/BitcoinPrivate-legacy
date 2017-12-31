@@ -178,7 +178,7 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
     }
-    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY));
+    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
     if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
         return false;
 
@@ -196,9 +196,26 @@ bool static CheckSignatureEncoding(const valtype &vchSig, unsigned int flags, Sc
     } else if ((flags & SCRIPT_VERIFY_LOW_S) != 0 && !IsLowDERSignature(vchSig, serror)) {
         // serror is set
         return false;
-    } else if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsDefinedHashtypeSignature(vchSig)) {
-        return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
     }
+
+    if ((flags & SCRIPT_VERIFY_STRICTENC) != 0) {
+        if(!IsDefinedHashtypeSignature(vchSig)) {
+            return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
+        }
+        unsigned char nHashType = vchSig[vchSig.size() - 1];
+        bool btcpForkHash       = nHashType & SIGHASH_FORKID;
+        bool btcpforkEnabled    = flags & SCRIPT_ENABLE_SIGHASH_FORKID;
+
+        if(!btcpForkHash && btcpforkEnabled) {
+            return set_error(serror, SCRIPT_ERR_ILLEGAL_BTCP_FORKID);
+        }
+
+        if(btcpForkHash && !btcpforkEnabled) {
+            return set_error(serror, SCRIPT_ERR_ILLEGAL_BTCP_FORKID);
+        }
+
+    }
+
     return true;
 }
 
@@ -1166,6 +1183,11 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
 
     if ((flags & SCRIPT_VERIFY_SIGPUSHONLY) != 0 && !scriptSig.IsPushOnly()) {
         return set_error(serror, SCRIPT_ERR_SIG_PUSHONLY);
+    }
+
+    // If SIGHASH_FORKID is enabled, we also ensure strict encoding.
+    if (flags & SCRIPT_ENABLE_SIGHASH_FORKID) {
+        flags |= SCRIPT_VERIFY_STRICTENC;
     }
 
     vector<vector<unsigned char> > stack, stackCopy;
