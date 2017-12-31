@@ -1104,7 +1104,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     ss << txTmp << nHashType;
     // This ensures Two Way Replay Protection
     if (nHashType & SIGHASH_FORKID) {
-        ss << std::string("BTCP");
+        ss << std::string("btcp");
     }
     return ss.GetHash();
 }
