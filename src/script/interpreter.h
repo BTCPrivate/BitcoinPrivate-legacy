@@ -87,6 +87,9 @@ enum
     //
     // See BIP65 for details.
     SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 9),
+
+    // Do we accept signature using SIGHASH_FORKID
+    SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 42),
 };
 
 uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
