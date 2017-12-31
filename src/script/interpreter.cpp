@@ -1085,6 +1085,10 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
     ss << txTmp << nHashType;
+    // This ensures Two Way Replay Protection
+    if (nHashType & SIGHASH_FORKID) {
+        ss << std::string("BTCP");
+    }
     return ss.GetHash();
 }
 
