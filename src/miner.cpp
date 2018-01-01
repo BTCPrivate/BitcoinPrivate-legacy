@@ -226,6 +226,7 @@ CBlockTemplate* CreateNewForkBlock()
         if (term != '\n') {
             //This maybe not an error, but warning none the less
             LogPrintf("CreateNewBlock(): Warning! No record separator ('0xA') was found\n");
+            if_utxo.seekg(-1, ios_base::cur); //move one char back - if it is not a separator, maybe there is not separators at all
         }
     }
     LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
