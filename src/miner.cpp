@@ -165,18 +165,39 @@ CBlockTemplate* CreateNewForkBlock()
         throw std::runtime_error("CreateNewForkBlock(): Cannot open UTXO file - " + utxo_path);
     }
 
-    char line[1000] = {};
-    while (if_utxo.getline(line, 100, '\n')) {
+    while (if_utxo) {
+        char term = 0;
 
-        uint64_t ammount = bytes2uint64(line);
-        uint64_t pubsize = bytes2uint64(line+8);
-
-        if (pubsize != 67) { //??? TODO: need to have a way to filter invalid records ???
-            LogPrintf("CreateNewBlock(): txn %u seems to be invalid pubsize is %u\n", nBlockTx, pubsize);
-            continue;
-        } else {
-            LogPrintf("CreateNewBlock(): txn %u has ammount %u\n", nBlockTx, ammount);
+        char coin[8] = {};
+        if (!if_utxo.read(coin, 8)) {
+            LogPrintf("CreateNewBlock(): No more data (Amount)\n");
+            break;
         }
+
+        char pubkeysize[8] = {};
+        if (!if_utxo.read(pubkeysize, 8)) {
+            LogPrintf("CreateNewBlock(): Not more data (PubKeyScript size)\n");
+            break;
+        }
+        
+        int pbsize = bytes2uint64(pubkeysize);
+
+        LogPrintf("CreateNewBlock():PubKeyScript size = d\n", pbsize);
+
+        if (pbsize == 0) {
+            LogPrintf("CreateNewBlock(): Warning! PubKeyScript size = 0\n");
+            //but proceed
+        }
+
+        std::unique_ptr<char[]> pubKeyScript(new char[pbsize]);
+        if (!if_utxo.read(&pubKeyScript[0], pbsize)) {
+            LogPrintf("CreateNewBlock(): Not more data (PubKeyScript)\n");
+            break;
+        }
+
+        uint64_t amount = bytes2uint64(coin);
+        LogPrintf("CreateNewBlock(): txn %u has ammount %u\n", nBlockTx, amount);
+
 
         // Add coinbase tx's
         CMutableTransaction txNew;
@@ -184,18 +205,28 @@ CBlockTemplate* CreateNewForkBlock()
         txNew.vin[0].prevout.SetNull();
         txNew.vout.resize(1);
         txNew.vout[0].scriptPubKey = CScript(); //PUB KEY READ FROM FILE
-        txNew.vout[0].nValue = ammount;
+        txNew.vout[0].nValue = amount;
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
         unsigned int nTxSize = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
         if (nBlockSize + nTxSize >= nBlockMaxSize)
-            break;//We cannot skip transaction here as in regular case - or we ca nloose the skipped transaction
+            break;//We cannot skip transaction here as in regular case - or we will loose that skipped transaction
 
         pblock->vtx.push_back(txNew);
         pblocktemplate->vTxFees.push_back(-1); // updated at end
         pblocktemplate->vTxSigOps.push_back(-1); // updated at end
         nBlockSize += nTxSize;
         ++nBlockTx;        
+
+
+        if (!if_utxo.read(&term, 1)) {
+            LogPrintf("CreateNewBlock(): No more data (record separator)\n");
+            break;
+        }
+        if (term != '\n') {
+            //This maybe not an error, but warning none the less
+            LogPrintf("CreateNewBlock(): Warning! No record separator ('0xA') was found\n");
+        }
     }
     LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
 
@@ -665,7 +696,7 @@ void static BitcoinMiner()
             if (bForking) {
                 unique_ptr<CBlockTemplate> pblocktemplate(CreateNewForkBlock());
                 if (!pblocktemplate.get()) {
-                    LogPrintf("Error in BTCPrivate Miner: Cannot create Frok Block\n");
+                    LogPrintf("Error in BTCPrivate Miner: Cannot create Fork Block\n");
                 }
                 pblock = &pblocktemplate->block;
 
