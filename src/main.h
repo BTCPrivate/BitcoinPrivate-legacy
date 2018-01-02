@@ -533,9 +533,19 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
 #ifdef FORK_CB_INPUT
 #define FORK_BLOCK_HEIGHT_START 1000000 //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
-                                        // I don't belive it should be set via paramter or env variable
-//#define FORK_BLOCK_HEIGHT_END FORK_BLOCK_HEIGHT_START + 65000
+#define FORK_BLOCK_HEIGHT_RANGE 65000   //assumption
 #define FORK_COINBASE_PER_BLOCK 1000
-#endif //FORK_CB_INPUT
+
+extern int64_t forkStartHeight;
+extern int64_t forkHeightRange;
+extern int64_t forkCBPerBlock;
+
+inline bool isForking()
+{
+    int nNextHeight = chainActive.Tip()->nHeight + 1;
+    return chainActive.Tip()? (nNextHeight >= forkStartHeight && nNextHeight < (forkStartHeight+forkHeightRange)): false;
+}
+
+#endif
 
 #endif // BITCOIN_MAIN_H

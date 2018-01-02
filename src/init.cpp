@@ -495,7 +495,7 @@ std::string HelpMessage(HelpMessageMode mode)
 #ifdef FORK_CB_INPUT
     strUsage += HelpMessageGroup(_("Fork :"));
     strUsage += HelpMessageOpt("-utxo-file=<file>", _("Specify input utxo file"));
-#endif //FORK_CB_INPUT
+#endif
 
 #ifdef ENABLE_MINING
     strUsage += HelpMessageGroup(_("Mining options:"));
@@ -895,6 +895,12 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
 #endif
     }
+
+#ifdef FORK_CB_INPUT
+    forkStartHeight = GetArg("-fork-startheight", FORK_BLOCK_HEIGHT_START);
+    forkHeightRange = GetArg("-fork-heightrange", FORK_BLOCK_HEIGHT_RANGE);
+    forkCBPerBlock = GetArg("-fork-cbperblock", FORK_COINBASE_PER_BLOCK);
+#endif
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 

@@ -42,7 +42,7 @@
 
 #ifdef FORK_CB_INPUT
 #include <fstream>
-#endif //FORK_CB_INPUT
+#endif
 
 
 using namespace std;
@@ -125,7 +125,7 @@ uint64_t bytes2uint64(char *array)
     static_cast<uint64_t>(array[7]) << 56 & 0xff00000000000000;
     return x;
 }
-CBlockTemplate* CreateNewForkBlock()
+CBlockTemplate* CreateNewForkBlock(int& utxoFileCurPos)
 {
     std::string utxo_path = GetArg("-utxo-file","");
 
@@ -164,40 +164,80 @@ CBlockTemplate* CreateNewForkBlock()
     if (!if_utxo.is_open()) {
         throw std::runtime_error("CreateNewForkBlock(): Cannot open UTXO file - " + utxo_path);
     }
+    
+    if_utxo.seekg(utxoFileCurPos, ios_base::beg);
+    LogPrintf("CreateNewForkBlock(): Reading UTXO file from %d\n", utxoFileCurPos);
 
-    char line[1000] = {};
-    while (if_utxo.getline(line, 100, '\n')) {
+    while (if_utxo && nBlockTx < forkCBPerBlock) {
+        char term = 0;
 
-        uint64_t ammount = bytes2uint64(line);
-        uint64_t pubsize = bytes2uint64(line+8);
-
-        if (pubsize != 67) { //??? TODO: need to have a way to filter invalid records ???
-            LogPrintf("CreateNewBlock(): txn %u seems to be invalid pubsize is %u\n", nBlockTx, pubsize);
-            continue;
-        } else {
-            LogPrintf("CreateNewBlock(): txn %u has ammount %u\n", nBlockTx, ammount);
+        char coin[8] = {};
+        if (!if_utxo.read(coin, 8)) {
+            LogPrintf("CreateNewForkBlock(): No more data (Amount)\n");
+            break;
         }
+
+        char pubkeysize[8] = {};
+        if (!if_utxo.read(pubkeysize, 8)) {
+            LogPrintf("CreateNewForkBlock(): Not more data (PubKeyScript size)\n");
+            break;
+        }
+        
+        int pbsize = bytes2uint64(pubkeysize);
+
+        LogPrintf("CreateNewForkBlock():PubKeyScript size = %d\n", pbsize);
+
+        if (pbsize == 0) {
+            LogPrintf("CreateNewForkBlock(): Warning! PubKeyScript size = 0\n");
+            //but proceed
+        }
+
+        std::unique_ptr<char[]> pubKeyScript(new char[pbsize]);
+        if (!if_utxo.read(&pubKeyScript[0], pbsize)) {
+            LogPrintf("CreateNewForkBlock(): Not more data (PubKeyScript)\n");
+            break;
+        }
+
+        uint64_t amount = bytes2uint64(coin);
+        LogPrintf("CreateNewForkBlock(): txn %u has ammount %u\n", nBlockTx, amount);
 
         // Add coinbase tx's
         CMutableTransaction txNew;
         txNew.vin.resize(1);
         txNew.vin[0].prevout.SetNull();
         txNew.vout.resize(1);
-        txNew.vout[0].scriptPubKey = CScript(); //PUB KEY READ FROM FILE
-        txNew.vout[0].nValue = ammount;
+
+        unsigned char* pks = (unsigned char*)pubKeyScript.get();
+        txNew.vout[0].scriptPubKey = CScript(pks, pks+pbsize);
+
+        LogPrintf("CreateNewForkBlock(): ScriptPubKey: %s\n", txNew.vout[0].scriptPubKey.ToString());
+
+
+        txNew.vout[0].nValue = amount;
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
         unsigned int nTxSize = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
         if (nBlockSize + nTxSize >= nBlockMaxSize)
-            break;//We cannot skip transaction here as in regular case - or we ca nloose the skipped transaction
+            break;//We cannot skip transaction here as in regular case - or we will loose that skipped transaction
 
         pblock->vtx.push_back(txNew);
         pblocktemplate->vTxFees.push_back(-1); // updated at end
         pblocktemplate->vTxSigOps.push_back(-1); // updated at end
         nBlockSize += nTxSize;
         ++nBlockTx;        
+
+
+        if (!if_utxo.read(&term, 1)) {
+            LogPrintf("CreateNewForkBlock(): No more data (record separator)\n");
+            break;
+        }
+        if (term != '\n') {
+            //This maybe not an error, but warning none the less
+            LogPrintf("CreateNewForkBlock(): Warning! No record separator ('0xA') was found\n");
+            if_utxo.seekg(-1, ios_base::cur); //move one char back - if it is not a separator, maybe there is not separators at all
+        }
     }
-    LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
+    LogPrintf("CreateNewForkBlock(): total size %u\n", nBlockSize);
 
     // Randomise nonce
     arith_uint256 nonce = UintToArith256(GetRandHash());
@@ -210,7 +250,12 @@ CBlockTemplate* CreateNewForkBlock()
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
     pblock->hashReserved   = uint256();
     UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
-    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus()); //TODO: SET LOW DIFFICATLY
+    pblock->nBits          = 0x207fffff; // Difficulty = 1
+    //0x207fffff -> 0x 7fffff00 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+    //alternativly
+    //0x1d00ffff -> 0x 00000000 ffff0000 00000000 00000000 00000000 00000000 00000000 00000000
+    // or
+    //0x1f07ffff -> 0x 007fffff 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 
     pblock->nSolution.clear();
     pblocktemplate->vTxSigOps[0] = 0;   //NO SigOps
@@ -219,9 +264,11 @@ CBlockTemplate* CreateNewForkBlock()
     if (!TestBlockValidity(state, *pblock, pindexPrev, false, false))
         throw std::runtime_error("CreateNewForkBlock(): TestBlockValidity failed");
 
+    utxoFileCurPos = if_utxo.tellg(); //-1, if end of data    
+
     return pblocktemplate.release();
 }
-#endif //FORK_CB_INPUT
+#endif
 
 CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 {
@@ -617,6 +664,10 @@ void static BitcoinMiner()
     CReserveKey reservekey(pwallet);
 #endif
 
+#ifdef FORK_CB_INPUT
+    int forkFilePos = 0; //TODO: make it percistent
+#endif
+
     // Each thread has its own counter
     unsigned int nExtraNonce = 0;
 
@@ -660,48 +711,53 @@ void static BitcoinMiner()
             CBlock *pblock = nullptr;
             unsigned int nTransactionsUpdatedLast = 0;
 
-#ifdef FORK_CB_INPUT
-            bool bForking = (pindexPrev->nHeight >= FORK_BLOCK_HEIGHT_START);
-            if (bForking) {
-                unique_ptr<CBlockTemplate> pblocktemplate(CreateNewForkBlock());
-                if (!pblocktemplate.get()) {
-                    LogPrintf("Error in BTCPrivate Miner: Cannot create Frok Block\n");
-                }
-                pblock = &pblocktemplate->block;
-
-                LogPrintf("Running BTCPrivate Miner with %u forking transactions in block (%u bytes)\n", pblock->vtx.size(),
-                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
-            } else {
-#endif //FORK_CB_INPUT
-
             //
             // Create new block
             //
-            nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
+            unique_ptr<CBlockTemplate> pblocktemplate;
+
+#ifdef FORK_CB_INPUT
+            bool bForking = isForking(); //(pindexPrev->nHeight >= forkStartHeight);
+            if (bForking) {
+                if (forkFilePos != -1) {
+                    pblocktemplate.reset(CreateNewForkBlock(forkFilePos));
+                    if (!pblocktemplate.get()) {
+                        LogPrintf("Error in BTCPrivate Miner: Cannot create Fork Block\n");
+                    }
+                    pblock = &pblocktemplate->block;
+
+                    LogPrintf("Running BTCPrivate Miner with %u forking transactions in block (%u bytes)\n", pblock->vtx.size(),
+                        ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+                }
+            } else {
+#endif
+
+                nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
 
 
 #ifdef ENABLE_WALLET
-            unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
+                pblocktemplate.reset(CreateNewBlockWithKey(reservekey));
 #else
-            unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey());
+                pblocktemplate.reset(CreateNewBlockWithKey());
 #endif
-            if (!pblocktemplate.get())
-            {
-                if (GetArg("-mineraddress", "").empty()) {
-                    LogPrintf("Error in BTCPrivate Miner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
-                } else {
-                    // Should never reach here, because -mineraddress validity is checked in init.cpp
-                    LogPrintf("Error in BTCPrivate Miner: Invalid -mineraddress\n");
+                if (!pblocktemplate.get())
+                {
+                    if (GetArg("-mineraddress", "").empty()) {
+                        LogPrintf("Error in BTCPrivate Miner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                    } else {
+                        // Should never reach here, because -mineraddress validity is checked in init.cpp
+                        LogPrintf("Error in BTCPrivate Miner: Invalid -mineraddress\n");
+                    }
+                    return;
                 }
-                return;
-            }
-            pblock = &pblocktemplate->block;
+                pblock = &pblocktemplate->block;
 
-            LogPrintf("Running BTCPrivate Miner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
-                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+                LogPrintf("Running BTCPrivate Miner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
+                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+
 #ifdef FORK_CB_INPUT
             } //else
-#endif //FORK_CB_INPUT
+#endif
 
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
@@ -837,12 +893,12 @@ void static BitcoinMiner()
                     break;
 #ifdef FORK_CB_INPUT
                 if (!bForking) {
-#endif //FORK_CB_INPUT
+#endif
                 if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                     break;
 #ifdef FORK_CB_INPUT
                 }
-#endif //FORK_CB_INPUT
+#endif
 
                 if (pindexPrev != chainActive.Tip())
                     break;

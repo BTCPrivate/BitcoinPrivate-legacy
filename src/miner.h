@@ -55,6 +55,6 @@ void UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, 
 
 #ifdef FORK_CB_INPUT
 CBlockTemplate* CreateNewForkBlock();
-#endif //FORK_CB_INPUT
+#endif
 
 #endif // BITCOIN_MINER_H

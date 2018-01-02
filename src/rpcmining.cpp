@@ -157,6 +157,29 @@ UniValue getgenerate(const UniValue& params, bool fHelp)
     return GetBoolArg("-gen", false);
 }
 
+#ifdef FORK_CB_INPUT
+UniValue startfork(const UniValue& params, bool fHelp)
+{
+    CBlockIndex* pindexPrev = chainActive.Tip();
+    forkStartHeight = pindexPrev->nHeight;
+
+    return NullUniValue;
+}
+UniValue startforkat(const UniValue& params, bool fHelp)
+{
+    if (params.size() == 1) {
+        forkStartHeight = params[0].get_int();
+    } else {
+        throw runtime_error(
+            "startfork at chain height\n"
+            + HelpExampleCli("startforkat", "100")
+        );
+    }
+
+    return NullUniValue;
+}
+#endif
+
 UniValue generate(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 1)

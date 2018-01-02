@@ -20,6 +20,10 @@
 
 #include <univalue.h>
 
+#ifndef FORK_CB_INPUT
+#define FORK_CB_INPUT
+#endif
+
 class AsyncRPCQueue;
 class CRPCCommand;
 
@@ -192,6 +196,10 @@ extern UniValue importwallet(const UniValue& params, bool fHelp);
 extern UniValue getgenerate(const UniValue& params, bool fHelp); // in rpcmining.cpp
 extern UniValue setgenerate(const UniValue& params, bool fHelp);
 extern UniValue generate(const UniValue& params, bool fHelp);
+#ifdef FORK_CB_INPUT
+extern UniValue startfork(const UniValue& params, bool fHelp);
+extern UniValue startforkat(const UniValue& params, bool fHelp);
+#endif
 extern UniValue getlocalsolps(const UniValue& params, bool fHelp);
 extern UniValue getnetworksolps(const UniValue& params, bool fHelp);
 extern UniValue getnetworkhashps(const UniValue& params, bool fHelp);
