@@ -13,6 +13,10 @@
 
 #include <univalue.h>
 
+#ifndef FORK_CB_INPUT
+#define FORK_CB_INPUT
+#endif
+
 using namespace std;
 
 class CRPCConvertParam
@@ -112,6 +116,11 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "z_getoperationstatus", 0},
     { "z_getoperationresult", 0},
     { "z_importkey", 2 },
+
+#ifdef FORK_CB_INPUT
+    { "startfork", 0 },
+    { "startforkat", 1 },
+#endif
 };
 
 class CRPCConvertTable

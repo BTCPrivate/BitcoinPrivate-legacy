@@ -67,7 +67,17 @@ public:
     bool WriteTxIndex(const std::vector<std::pair<uint256, CDiskTxPos> > &list);
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
+
+#ifndef FORK_CB_INPUT
+#define FORK_CB_INPUT
+#endif
+
+#ifdef FORK_CB_INPUT
+    bool LoadBlockIndexGuts(int64_t forkStart, int64_t forkStop);
+#else
     bool LoadBlockIndexGuts();
+#endif
+
 };
 
 #endif // BITCOIN_TXDB_H
