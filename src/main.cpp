@@ -72,8 +72,10 @@ uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 
 #ifdef FORK_CB_INPUT
-bool bForking = false;
-#endif //FORK_CB_INPUT
+int64_t forkStartHeight = FORK_BLOCK_HEIGHT_START;
+int64_t forkHeightRange = FORK_BLOCK_HEIGHT_RANGE;
+int64_t forkCBPerBlock = FORK_COINBASE_PER_BLOCK;
+#endif
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying and mining) */
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
@@ -1375,10 +1377,19 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos)
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
 
+#ifdef FORK_CB_INPUT
+    if (!isForking()) {
+#endif
+
     // Check the header
     if (!(CheckEquihashSolution(&block, Params()) &&
           CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+
+#ifdef FORK_CB_INPUT
+    }
+#endif
+
 
     return true;
 }
@@ -1917,8 +1928,15 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
             }
         }
 
+        int nNonCBIdx = 0;
         // restore inputs
-        if (i > 0) { // not coinbases
+#ifdef FORK_CB_INPUT
+    if (isForking()){
+        nNonCBIdx = forkCBPerBlock;
+    }
+#endif
+
+        if (i > nNonCBIdx) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i-1];
             if (txundo.vprevout.size() != tx.vin.size())
                 return error("DisconnectBlock(): transaction and undo data inconsistent");
@@ -2192,12 +2210,18 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime1 = GetTimeMicros(); nTimeConnect += nTime1 - nTimeStart;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime1 - nTimeStart), 0.001 * (nTime1 - nTimeStart) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime1 - nTimeStart) / (nInputs-1), nTimeConnect * 0.000001);
 
+#ifdef FORK_CB_INPUT
+    if (!isForking()){
+#endif
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus());
     if (block.vtx[0].GetValueOut() > blockReward)
         return state.DoS(100,
                          error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
                                block.vtx[0].GetValueOut(), blockReward),
                                REJECT_INVALID, "bad-cb-amount");
+#ifdef FORK_CB_INPUT
+    }
+#endif
 
     if (!control.Wait())
         return state.DoS(100, false);
@@ -2979,10 +3003,18 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
         return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
                          REJECT_INVALID, "invalid-solution");
 
+#ifdef FORK_CB_INPUT
+    if (!isForking()) {
+#endif
+
     // Check proof of work matches claimed amount
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
         return state.DoS(50, error("CheckBlockHeader(): proof of work failed"),
                          REJECT_INVALID, "high-hash");
+
+#ifdef FORK_CB_INPUT
+    }
+#endif
 
     // Check timestamp
     if (block.GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
@@ -3034,21 +3066,21 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
                          REJECT_INVALID, "bad-cb-missing");
 
 #ifdef FORK_CB_INPUT
-    if (bForking) {
-        //This blocks might have up to FORK_COINBASE_PER_BLOCK coinbases
-        for (unsigned int i = FORK_COINBASE_PER_BLOCK; i < block.vtx.size(); i++)
+    if (isForking()) {
+        //This blocks might have up to fork pre-defined value coinbases
+        for (unsigned int i = forkCBPerBlock; i < block.vtx.size(); i++)
             if (block.vtx[i].IsCoinBase())
                 return state.DoS(100, error("CheckBlock(): it is forking block - more than 1000 coinbase"),
                                 REJECT_INVALID, "bad-cb-multiple");
     } else {
-#endif //FORK_CB_INPUT
+#endif
         for (unsigned int i = 1; i < block.vtx.size(); i++)
             if (block.vtx[i].IsCoinBase())
                 return state.DoS(100, error("CheckBlock(): more than one coinbase"),
                                 REJECT_INVALID, "bad-cb-multiple");
 #ifdef FORK_CB_INPUT
     }
-#endif //FORK_CB_INPUT
+#endif
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
         if (!CheckTransaction(tx, state, verifier))
@@ -3079,9 +3111,15 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     int nHeight = pindexPrev->nHeight+1;
 
     // Check proof of work
+#ifdef FORK_CB_INPUT
+    if (!isForking()) {
+#endif
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, error("%s: incorrect proof of work", __func__),
                          REJECT_INVALID, "bad-diffbits");
+#ifdef FORK_CB_INPUT
+    }
+#endif
 
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -3305,10 +3343,6 @@ bool TestBlockValidity(CValidationState &state, const CBlock& block, CBlockIndex
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
-
-#ifdef FORK_CB_INPUT
-    bForking = (pindexPrev->nHeight + 1 >= FORK_BLOCK_HEIGHT_START /*&& nHeight < FORK_BLOCK_HEIGHT_END*/);
-#endif //FORK_CB_INPUT
     
     if (!CheckBlock(block, state, verifier, fCheckPOW, fCheckMerkleRoot))
         return false;
@@ -3496,7 +3530,12 @@ CBlockIndex * InsertBlockIndex(uint256 hash)
 bool static LoadBlockIndexDB()
 {
     const CChainParams& chainparams = Params();
+
+#ifdef FORK_CB_INPUT
+    if (!pblocktree->LoadBlockIndexGuts(forkStartHeight, forkStartHeight+forkHeightRange))
+#else
     if (!pblocktree->LoadBlockIndexGuts())
+#endif
         return false;
 
     boost::this_thread::interruption_point();
