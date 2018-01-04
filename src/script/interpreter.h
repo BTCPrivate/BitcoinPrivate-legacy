@@ -25,9 +25,10 @@ const unsigned int NOT_AN_INPUT = UINT_MAX;
 /** Signature hash types/flags */
 enum
 {
-    SIGHASH_ALL = 1,
-    SIGHASH_NONE = 2,
-    SIGHASH_SINGLE = 3,
+    SIGHASH_ALL          = 1,
+    SIGHASH_NONE         = 2,
+    SIGHASH_SINGLE       = 3,
+    SIGHASH_FORKID       = 0x42,
     SIGHASH_ANYONECANPAY = 0x80,
 };
 
@@ -86,6 +87,9 @@ enum
     //
     // See BIP65 for details.
     SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 9),
+
+    // Do we accept signature using SIGHASH_FORKID
+    SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 42),
 };
 
 uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
