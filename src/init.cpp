@@ -494,7 +494,7 @@ std::string HelpMessage(HelpMessageMode mode)
 
 #ifdef FORK_CB_INPUT
     strUsage += HelpMessageGroup(_("Fork :"));
-    strUsage += HelpMessageOpt("-utxo-file=<file>", _("Specify input utxo file"));
+    strUsage += HelpMessageOpt("-utxo-path=<path>", _("Specify location of utxo files"));
 #endif
 
 #ifdef ENABLE_MINING
@@ -897,6 +897,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
 #ifdef FORK_CB_INPUT
+    forkUtxoPath = GetArg("-utxo-path", "");
     forkStartHeight = GetArg("-fork-startheight", FORK_BLOCK_HEIGHT_START);
     forkHeightRange = GetArg("-fork-heightrange", FORK_BLOCK_HEIGHT_RANGE);
     forkCBPerBlock = GetArg("-fork-cbperblock", FORK_COINBASE_PER_BLOCK);
