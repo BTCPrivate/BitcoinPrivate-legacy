@@ -207,11 +207,11 @@ bool static CheckSignatureEncoding(const valtype &vchSig, unsigned int flags, Sc
         bool btcpforkEnabled    = flags & SCRIPT_ENABLE_SIGHASH_FORKID;
 
         if(!btcpForkHash && btcpforkEnabled) {
-            return set_error(serror, SCRIPT_ERR_ILLEGAL_BTCP_FORKID);
+            return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
         }
 
         if(btcpForkHash && !btcpforkEnabled) {
-            return set_error(serror, SCRIPT_ERR_ILLEGAL_BTCP_FORKID);
+            return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
         }
 
     }
