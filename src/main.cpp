@@ -72,9 +72,30 @@ uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 
 #ifdef FORK_CB_INPUT
+#include <boost/format.hpp>
+#include <boost/range/combine.hpp>
+
+std::string forkUtxoPath;
 int64_t forkStartHeight = FORK_BLOCK_HEIGHT_START;
 int64_t forkHeightRange = FORK_BLOCK_HEIGHT_RANGE;
 int64_t forkCBPerBlock = FORK_COINBASE_PER_BLOCK;
+
+std::string GetUTXOFileName(int nHeight)
+{
+    boost::filesystem::path utxo_path(forkUtxoPath);                    
+    if (utxo_path.empty() || !utxo_path.has_filename())
+    {
+        LogPrintf("GetUTXOFileName(): UTXO path is not specified, add utxo-path=<path-to-utxop-files> to your btcprivate.conf and restart");
+        return ""; 
+    }
+
+    std::stringstream ss;
+    ss << boost::format("utxo-%05i.bin") % (nHeight - forkStartHeight);
+    boost::filesystem::path utxo_file = utxo_path;
+    utxo_file /= ss.str();
+
+    return utxo_file.generic_string();
+}
 #endif
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying and mining) */
@@ -1360,7 +1381,11 @@ bool WriteBlockToDisk(CBlock& block, CDiskBlockPos& pos, const CMessageHeader::M
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos)
+bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos
+#ifdef FORK_CB_INPUT
+        , int nHeight = -1
+#endif
+)
 {
     block.SetNull();
 
@@ -1378,7 +1403,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos)
     }
 
 #ifdef FORK_CB_INPUT
-    if (!isForking()) {
+    if (!isFork(nHeight)) { //when block is un fork region - don't check Solution and PoW
 #endif
 
     // Check the header
@@ -1396,7 +1421,12 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos)
 
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex)
 {
-    if (!ReadBlockFromDisk(block, pindex->GetBlockPos()))
+    if (!ReadBlockFromDisk(block, pindex->GetBlockPos()
+#ifdef FORK_CB_INPUT
+        , pindex->nHeight
+#endif
+    )
+    )
         return false;
     if (block.GetHash() != pindex->GetBlockHash())
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
@@ -1902,20 +1932,30 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
         const CTransaction &tx = block.vtx[i];
         uint256 hash = tx.GetHash();
 
+        int nNonCBIdx = 0;
+        // restore inputs
+#ifdef FORK_CB_INPUT
+        if (isFork(pindex->nHeight)){  //when block in forking region - all transcations are coinbase
+            nNonCBIdx = forkCBPerBlock;
+        }
+        else
+#endif
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
-        {
-        CCoinsModifier outs = view.ModifyCoins(hash);
-        outs->ClearUnspendable();
+        {        
+            CCoinsModifier outs = view.ModifyCoins(hash);
+            outs->ClearUnspendable();
 
-        CCoins outsBlock(tx, pindex->nHeight);
-        // The CCoins serialization does not serialize negative numbers.
-        // No network rules currently depend on the version here, so an inconsistency is harmless
-        // but it must be corrected before txout nversion ever influences a network rule.
-        if (outsBlock.nVersion < 0)
-            outs->nVersion = outsBlock.nVersion;
-        if (*outs != outsBlock)
-            fClean = fClean && error("DisconnectBlock(): added transaction mismatch? database corrupted");
+            CCoins outsBlock(tx, pindex->nHeight);
+            // The CCoins serialization does not serialize negative numbers.
+            // No network rules currently depend on the version here, so an inconsistency is harmless
+            // but it must be corrected before txout nversion ever influences a network rule.
+            if (outsBlock.nVersion < 0)
+                outs->nVersion = outsBlock.nVersion;
+            if (*outs != outsBlock) {
+                fClean = fClean && error("DisconnectBlock(): added transaction mismatch? database corrupted");
+                LogPrintf("Transaction mismatch?: id: %d: Amount: %d; ScriptPubKey: %s\n", i, tx.vout[0].nValue, tx.vout[0].scriptPubKey.ToString());
+            }
 
         // remove outputs
         outs->Clear();
@@ -1927,14 +1967,6 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
                 view.SetNullifier(nf, false);
             }
         }
-
-        int nNonCBIdx = 0;
-        // restore inputs
-#ifdef FORK_CB_INPUT
-    if (isForking()){
-        nNonCBIdx = forkCBPerBlock;
-    }
-#endif
 
         if (i > nNonCBIdx) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i-1];
@@ -2211,7 +2243,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime1 - nTimeStart), 0.001 * (nTime1 - nTimeStart) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime1 - nTimeStart) / (nInputs-1), nTimeConnect * 0.000001);
 
 #ifdef FORK_CB_INPUT
-    if (!isForking()){
+    if (!isFork(pindex->nHeight)){  //when block is in forking region - don't check coinbase amount
 #endif
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus());
     if (block.vtx[0].GetValueOut() > blockReward)
@@ -2998,14 +3030,14 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
         return state.DoS(100, error("CheckBlockHeader(): block version too low"),
                          REJECT_INVALID, "version-too-low");
 
+#ifdef FORK_CB_INPUT
+    if (!isFork()) { //when in FORK mode (tip is in forking region) - don't check Solution and PoW
+#endif
+
     // Check Equihash solution is valid
     if (fCheckPOW && !CheckEquihashSolution(&block, Params()))
         return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
                          REJECT_INVALID, "invalid-solution");
-
-#ifdef FORK_CB_INPUT
-    if (!isForking()) {
-#endif
 
     // Check proof of work matches claimed amount
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
@@ -3066,11 +3098,9 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
                          REJECT_INVALID, "bad-cb-missing");
 
 #ifdef FORK_CB_INPUT
-    if (isForking()) {
-        //This blocks might have up to fork pre-defined value coinbases
-        for (unsigned int i = forkCBPerBlock; i < block.vtx.size(); i++)
-            if (block.vtx[i].IsCoinBase())
-                return state.DoS(100, error("CheckBlock(): it is forking block - more than 1000 coinbase"),
+    if (isFork()) { //when in FORK mode (tip is in forking region) blocks might have up to fork pre-defined value coinbases
+        if (block.vtx.size() > forkCBPerBlock)
+            return state.DoS(100, error("CheckBlock(): it is forking block but there are more than %d coinbase txns", forkCBPerBlock),
                                 REJECT_INVALID, "bad-cb-multiple");
     } else {
 #endif
@@ -3081,6 +3111,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
 #ifdef FORK_CB_INPUT
     }
 #endif
+
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
         if (!CheckTransaction(tx, state, verifier))
@@ -3112,7 +3143,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     // Check proof of work
 #ifdef FORK_CB_INPUT
-    if (!isForking()) {
+    if (!isFork(nHeight)) { //If current block is FORK, don't check work required
 #endif
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, error("%s: incorrect proof of work", __func__),
@@ -3218,7 +3249,11 @@ bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, CBloc
     return true;
 }
 
-bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, bool fRequested, CDiskBlockPos* dbp)
+bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, bool fRequested, CDiskBlockPos* dbp
+#ifdef FORK_CB_INPUT
+        , bool fCalledFromMiner
+#endif
+    )
 {
     const CChainParams& chainparams = Params();
     AssertLockHeld(cs_main);
@@ -3261,6 +3296,88 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
 
     int nHeight = pindex->nHeight;
 
+#ifdef FORK_CB_INPUT
+    if (isFork(nHeight)) { //if block is in forking region validate it agains file records
+        if (!fCalledFromMiner && !forkUtxoPath.empty()) {
+
+            std::string utxo_file_path = GetUTXOFileName(nHeight);
+            std::ifstream if_utxo(utxo_file_path, std::ios::binary | std::ios::in);
+            if (!if_utxo.is_open()) {
+                LogPrintf("AcceptBlock(): FORK Block - Cannot open UTXO file - %s\n", utxo_file_path);
+            } else {
+                LogPrintf("AcceptBlock(): FORK Block - Validating block - %u with UTXO file - %s\n", nHeight, utxo_file_path);
+
+                vector<pair<uint64_t, CScript> > txFromFile;
+                txFromFile.reserve(forkCBPerBlock);
+                int recs = 0;
+
+                while (if_utxo && recs < forkCBPerBlock) {
+                    char term = 0;
+                    char coin[8] = {};
+                    if (!if_utxo.read(coin, 8)) {
+                        LogPrintf("AcceptBlock(): FORK Block - UTXO file corrupted? - No more data (Amount)\n");
+                        break;
+                    }
+                    uint64_t amount = bytes2uint64(coin);
+
+                    char pubkeysize[8] = {};
+                    if (!if_utxo.read(pubkeysize, 8)) {
+                        LogPrintf("AcceptBlock(): FORK Block - UTXO file corrupted? - Not more data (PubKeyScript size)\n");
+                        break;
+                    }
+                    int pbsize = bytes2uint64(pubkeysize);
+                    if (pbsize == 0) {
+                        LogPrintf("AcceptBlock(): FORK Block - UTXO file corrupted? - Warning! PubKeyScript size = 0\n");
+                        //but proceed
+                    }
+                    std::unique_ptr<char[]> pubKeyScript(new char[pbsize]);
+                    if (!if_utxo.read(&pubKeyScript[0], pbsize)) {
+                        LogPrintf("AcceptBlock(): FORK Block - UTXO file corrupted? - Not more data (PubKeyScript)\n");
+                        break;
+                    }
+                    unsigned char* pks = (unsigned char*)pubKeyScript.get();
+                    CScript script = CScript(pks, pks+pbsize);
+            
+                    txFromFile.push_back(make_pair(amount, script));
+
+                    if (!if_utxo.read(&term, 1)) {
+                        LogPrintf("AcceptBlock(): FORK Block - UTXO file corrupted? - No more data (record separator)\n");
+                        break;
+                    }
+                    if (term != '\n') {
+                        //This maybe not an error, but warning none the less
+                        LogPrintf("AcceptBlock(): FORK Block - UTXO file corrupted? - Warning! No record separator ('0xA') was found\n");
+                        if_utxo.seekg(-1, ios_base::cur); //move one char back - if it is not a separator, maybe there is not separators at all
+                    }
+                    recs++;
+                }
+                LogPrintf("AcceptBlock(): FORK Block - %d records read from UTXO file\n", recs);
+
+                int txid = 0;
+                typedef boost::tuple<pair<uint64_t, CScript>&, const CTransaction&> fork_cmp_tuple;
+                BOOST_FOREACH(fork_cmp_tuple cmp, boost::combine(txFromFile, block.vtx)) {
+                    pair<uint64_t, CScript>& rec = cmp.get<0>();
+                    const CTransaction& tx = cmp.get<1>();
+
+                    if (rec.first != tx.vout[0].nValue ||
+                        rec.second != tx.vout[0].scriptPubKey)
+                    {
+                        LogPrintf("AcceptBlock(): FORK Block - Error: Transaction (%d) mismatch\n", txid);
+                        LogPrintf("AcceptBlock(): Transaction: Amount: %d; scriptPubKey: %s\n", tx.vout[0].nValue, tx.vout[0].scriptPubKey.ToString());
+                        LogPrintf("AcceptBlock(): File Record: Amount: %d; scriptPubKey: %s\n", rec.first, rec.second.ToString());
+                        state.DoS(100, error("AcceptBlock(): FORK Block - Transaction (%d) doesn't match record in the UTXO file", txid),
+                                        REJECT_INVALID, "bad-fork-block");
+                        pindex->nStatus |= BLOCK_FAILED_VALID;
+                        setDirtyBlockIndex.insert(pindex);
+                        return false;
+                    }
+                }
+                txid++;
+            }
+        }
+    }
+#endif
+
     // Write block to history file
     try {
         unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
@@ -3297,7 +3414,11 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned 
 }
 
 
-bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool fForceProcessing, CDiskBlockPos *dbp)
+bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool fForceProcessing, CDiskBlockPos *dbp
+#ifdef FORK_CB_INPUT
+                , bool fCalledFromMiner
+#endif
+)
 {
     // Preliminary checks
     auto verifier = libzcash::ProofVerifier::Disabled();
@@ -3313,7 +3434,11 @@ bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool
 
         // Store to disk
         CBlockIndex *pindex = NULL;
-        bool ret = AcceptBlock(*pblock, state, &pindex, fRequested, dbp);
+        bool ret = AcceptBlock(*pblock, state, &pindex, fRequested, dbp
+#ifdef FORK_CB_INPUT
+        , fCalledFromMiner
+#endif
+        );
         if (pindex && pfrom) {
             mapBlockSource[pindex->GetBlockHash()] = pfrom->GetId();
         }
