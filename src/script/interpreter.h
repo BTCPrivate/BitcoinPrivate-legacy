@@ -89,7 +89,7 @@ enum
     SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 9),
 
     // Do we accept signature using SIGHASH_FORKID
-    SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 42),
+    SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 10),
 };
 
 uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
