@@ -1383,7 +1383,7 @@ bool WriteBlockToDisk(CBlock& block, CDiskBlockPos& pos, const CMessageHeader::M
 
 bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos
 #ifdef FORK_CB_INPUT
-        , int nHeight = -1
+        , int nHeight
 #endif
 )
 {
@@ -1403,7 +1403,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos
     }
 
 #ifdef FORK_CB_INPUT
-    if (!isFork(nHeight)) { //when block is un fork region - don't check Solution and PoW
+    if (!isForkBlock(nHeight)) { //when block is in fork region - don't check Solution and PoW
 #endif
 
     // Check the header
@@ -1414,7 +1414,6 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos
 #ifdef FORK_CB_INPUT
     }
 #endif
-
 
     return true;
 }
@@ -1934,12 +1933,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
 
         int nNonCBIdx = 0;
         // restore inputs
-#ifdef FORK_CB_INPUT
-        if (isFork(pindex->nHeight)){  //when block in forking region - all transcations are coinbase
-            nNonCBIdx = forkCBPerBlock;
-        }
-        else
-#endif
+
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
         {        
@@ -1968,6 +1962,11 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
             }
         }
 
+#ifdef FORK_CB_INPUT
+        if (isForkBlock(pindex->nHeight)){  //when block in forking region - all transcations are coinbase
+            nNonCBIdx = forkCBPerBlock;
+        }
+#endif
         if (i > nNonCBIdx) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i-1];
             if (txundo.vprevout.size() != tx.vin.size())
@@ -2243,7 +2242,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime1 - nTimeStart), 0.001 * (nTime1 - nTimeStart) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime1 - nTimeStart) / (nInputs-1), nTimeConnect * 0.000001);
 
 #ifdef FORK_CB_INPUT
-    if (!isFork(pindex->nHeight)){  //when block is in forking region - don't check coinbase amount
+    if (!isForkBlock(pindex->nHeight)){  //when block is in forking region - don't check coinbase amount
 #endif
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus());
     if (block.vtx[0].GetValueOut() > blockReward)
@@ -3031,7 +3030,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
                          REJECT_INVALID, "version-too-low");
 
 #ifdef FORK_CB_INPUT
-    if (!isFork()) { //when in FORK mode (tip is in forking region) - don't check Solution and PoW
+    if (!isTipInForkRange()) { //when in FORK mode (tip is in forking region) - don't check Solution and PoW
 #endif
 
     // Check Equihash solution is valid
@@ -3098,7 +3097,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
                          REJECT_INVALID, "bad-cb-missing");
 
 #ifdef FORK_CB_INPUT
-    if (isFork()) { //when in FORK mode (tip is in forking region) blocks might have up to fork pre-defined value coinbases
+    if (isTipInForkRange()) { //when in FORK mode (tip is in forking region) blocks might have up to fork pre-defined value coinbases
         if (block.vtx.size() > forkCBPerBlock)
             return state.DoS(100, error("CheckBlock(): it is forking block but there are more than %d coinbase txns", forkCBPerBlock),
                                 REJECT_INVALID, "bad-cb-multiple");
@@ -3143,7 +3142,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     // Check proof of work
 #ifdef FORK_CB_INPUT
-    if (!isFork(nHeight)) { //If current block is FORK, don't check work required
+    if (!isForkBlock(nHeight)) { //If current block is FORK, don't check work required
 #endif
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, error("%s: incorrect proof of work", __func__),
@@ -3297,7 +3296,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
     int nHeight = pindex->nHeight;
 
 #ifdef FORK_CB_INPUT
-    if (isFork(nHeight)) { //if block is in forking region validate it agains file records
+    if (isForkBlock(nHeight)) { //if block is in forking region validate it agains file records
         if (!fCalledFromMiner && !forkUtxoPath.empty()) {
 
             std::string utxo_file_path = GetUTXOFileName(nHeight);
@@ -3315,7 +3314,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
                     char term = 0;
                     char coin[8] = {};
                     if (!if_utxo.read(coin, 8)) {
-                        LogPrintf("AcceptBlock(): FORK Block - UTXO file corrupted? - No more data (Amount)\n");
+                        LogPrintf("AcceptBlock(): FORK Block - No more data in the file \n");
                         break;
                     }
                     uint64_t amount = bytes2uint64(coin);
