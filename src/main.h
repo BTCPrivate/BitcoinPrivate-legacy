@@ -37,10 +37,6 @@
 
 #include <boost/unordered_map.hpp>
 
-#ifndef FORK_CB_INPUT
-#define FORK_CB_INPUT
-#endif
-
 class CBlockIndex;
 class CBlockTreeDB;
 class CBloomFilter;
@@ -557,17 +553,17 @@ extern int64_t forkCBPerBlock;
 
 std::string GetUTXOFileName(int nHeight);
 
-inline bool isFork(int nHeight)
+inline bool isForkBlock(int nHeight)
 {
     return (nHeight >= forkStartHeight && nHeight < forkStartHeight + forkHeightRange);
 }
-inline bool isFork()
+inline bool isTipInForkRange()
 {
-    return chainActive.Tip()? isFork(chainActive.Tip()->nHeight): false;
+    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight): false;
 }
-inline bool isNextFork()
+inline bool isNextTipInForkRange()
 {
-    return chainActive.Tip()? isFork(chainActive.Tip()->nHeight+1): false;
+    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight + 1): false;
 }
 inline uint64_t bytes2uint64(char *array)
 {
