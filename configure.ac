@@ -82,6 +82,13 @@ AC_ARG_ENABLE([wallet],
   [enable_wallet=$enableval],
   [enable_wallet=yes])
 
+# Enable fork mining
+AC_ARG_ENABLE([fork],
+  [AS_HELP_STRING([--enable-fork],
+  [enable fork (default is yes)])],
+  [enable_fork=$enableval],
+  [enable_fork=yes])
+
 AC_ARG_ENABLE([mining],
   [AS_HELP_STRING([--enable-mining],
   [enable mining (default is yes)])],
@@ -856,6 +863,16 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl enable fork_mining
+AC_MSG_CHECKING([if fork mining should be enabled])
+if test x$enable_fork != xno; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(FORK_CB_INPUT, 1, [Define to 1 to enable fork mining functions])
+
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl enable mining
 AC_MSG_CHECKING([if mining should be enabled])
 if test x$enable_mining != xno; then
@@ -931,6 +948,7 @@ AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
 AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
+AM_CONDITIONAL([FORK_CB_INPUT],[test x$enable_fork = xyes])
 AM_CONDITIONAL([ENABLE_MINING],[test x$enable_mining = xyes])
 AM_CONDITIONAL([ENABLE_RUST],[test x$enable_rust = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])

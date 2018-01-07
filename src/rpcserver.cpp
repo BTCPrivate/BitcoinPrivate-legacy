@@ -309,11 +309,6 @@ static const CRPCCommand vRPCCommands[] =
     { "generating",         "generate",               &generate,               true  },
 #endif
 
-#ifdef FORK_CB_INPUT
-    { "generating",         "startfork",              &startfork,              true  },
-    { "generating",         "startforkat",            &startforkat,            true  },
-#endif
-
     /* Raw transactions */
     { "rawtransactions",    "createrawtransaction",   &createrawtransaction,   true  },
     { "rawtransactions",    "decoderawtransaction",   &decoderawtransaction,   true  },

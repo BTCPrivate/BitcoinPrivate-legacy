@@ -194,7 +194,7 @@ CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound)
 
 
         txNew.vout[0].nValue = amount;
-        txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
+        txNew.vin[0].scriptSig = CScript() << nHeight+nBlockTx << OP_0;
 
         unsigned int nTxSize = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
         if (nBlockSize + nTxSize >= nBlockMaxSize)
@@ -594,7 +594,7 @@ static bool ProcessBlockFound(CBlock* pblock)
 #endif // ENABLE_WALLET
 {
 #ifdef FORK_CB_INPUT
-    if (!isNextFork()) {
+    if (!isNextTipInForkRange()) {
 #endif
     LogPrintf("%s\n", pblock->ToString());
 #ifdef FORK_CB_INPUT
@@ -678,7 +678,6 @@ void static BitcoinMiner()
 
     try {
         while (true) {
-#ifndef FORK_CB_INPUT ///!!!! this is only for TESTING
             if (chainparams.MiningRequiresPeers()) {
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
@@ -695,7 +694,6 @@ void static BitcoinMiner()
                 } while (true);
                 miningTimer.start();
             }
-#endif
 
             CBlockIndex* pindexPrev = chainActive.Tip();
             CBlock *pblock = nullptr;
@@ -707,7 +705,7 @@ void static BitcoinMiner()
             unique_ptr<CBlockTemplate> pblocktemplate;
 
 #ifdef FORK_CB_INPUT
-            bool isNextBlockFork = isFork(pindexPrev->nHeight+1);
+            bool isNextBlockFork = isForkBlock(pindexPrev->nHeight+1);
             if (isNextBlockFork) {
                 if (!bForkModeStarted) {
                     LogPrintf("BTCPrivate Miner: switching into fork mode\n");
