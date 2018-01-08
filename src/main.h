@@ -553,9 +553,38 @@ extern int64_t forkCBPerBlock;
 
 std::string GetUTXOFileName(int nHeight);
 
+//ex: forkStartHeight = 300 000; forkHeightRange = 65K
+//A. for miner:
+//   1.   Current height = 299 999; the next block to create 300 000
+//                  nHeight is 300 000 - return false
+//   2.   Current height = 300 000; the next block to create 300 001
+//                  nHeight is 300 001 - return true - file to use utxo-00001.bin
+//      ...
+//
+//   n-1. Current height = 364 999; the next block to create 365 000
+//                  nHeight is 365 000 - return true - file to use utxo-65000.bin
+//   n.   Current height = 365 000; the next block to create 365 001
+//                  nHeight is 365 001 - return false
+//
+//  fork blocks 300001 - 365000
+//
+//B. for acceptblock:
+//   1.   Current height = 299 999
+//                  nHeight is 299 999 - return false - no verification
+//   2.   Current height = 300 000
+//                  nHeight is 300 000 - return false - no verification
+//   3.   Current height = 300 001
+//                  nHeight is 300 001 - return true - verify with file utxo-00001.bin
+//      ...
+//
+//   n.   Current height = 365 000
+//                  nHeight is 365 000 - return true - verify with file utxo-65000.bin
+//   n+1. Current height = 365 001
+//                  nHeight is 365 001 - return false - no verification
+//
 inline bool isForkBlock(int nHeight)
 {
-    return (nHeight >= forkStartHeight && nHeight < forkStartHeight + forkHeightRange);
+    return (nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
 }
 inline bool isTipInForkRange()
 {
