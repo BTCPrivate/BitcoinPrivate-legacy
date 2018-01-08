@@ -3352,6 +3352,15 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
                 }
                 LogPrintf("AcceptBlock(): FORK Block - %d records read from UTXO file\n", recs);
 
+                if (txFromFile.size() != block.vtx.size() ||
+                    recs != block.vtx.size()){
+                    state.DoS(100, error("AcceptBlock(): Number of file records - %d doesn't match number of transcations in block - %d\n", recs, block.vtx.size()),
+                                    REJECT_INVALID, "bad-fork-block");
+                    pindex->nStatus |= BLOCK_FAILED_VALID;
+                    setDirtyBlockIndex.insert(pindex);
+                    return false;                    
+                }
+
                 int txid = 0;
                 typedef boost::tuple<pair<uint64_t, CScript>&, const CTransaction&> fork_cmp_tuple;
                 BOOST_FOREACH(fork_cmp_tuple cmp, boost::combine(txFromFile, block.vtx)) {
