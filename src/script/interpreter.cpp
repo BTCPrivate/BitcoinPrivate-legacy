@@ -90,7 +90,7 @@ bool static IsCompressedOrUncompressedPubKey(const valtype &vchPubKey) {
  * Where R and S are not negative (their first byte has its highest bit not set), and not
  * excessively padded (do not start with a 0 byte, unless an otherwise negative number follows,
  * in which case a single 0 byte is necessary and even required).
- * 
+ *
  * See https://bitcointalk.org/index.php?topic=8392.msg127623#msg127623
  *
  * This function is consensus-critical since BIP66.
@@ -130,7 +130,7 @@ bool static IsValidSignatureEncoding(const std::vector<unsigned char> &sig) {
     // Verify that the length of the signature matches the sum of the length
     // of the elements.
     if ((size_t)(lenR + lenS + 7) != sig.size()) return false;
- 
+
     // Check whether the R element is an integer.
     if (sig[2] != 0x02) return false;
 
@@ -1190,6 +1190,13 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
         flags |= SCRIPT_VERIFY_STRICTENC;
     }
 
+    // Do not allow spends of P2WPKH-P2SH and P2WSH-P2SH UTXOs
+    // To a non-segwit aware node these outputs are trivially spendable
+    // Detect them here and evaluate to false
+    // TODO: remove this block post-segwit implementation
+    if( scriptPubKey.IsPayToWitnessPubKeyHash() || scriptPubKey.IsPayToWitnessScriptHash())
+        return set_error(serror, SCRIPT_ERR_SEGWIT_LOCKED);
+
     vector<vector<unsigned char> > stack, stackCopy;
     if (!EvalScript(stack, scriptSig, flags, checker, serror))
         // serror is set
@@ -1222,6 +1229,10 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
         const valtype& pubKeySerialized = stack.back();
         CScript pubKey2(pubKeySerialized.begin(), pubKeySerialized.end());
         popstack(stack);
+
+        // See TODO above
+        if(pubKey2.IsPayToWitnessPubKeyHash() || pubKey2.IsPayToWitnessScriptHash())
+            return set_error(serror, SCRIPT_ERR_SEGWIT_LOCKED);
 
         if (!EvalScript(stack, pubKey2, flags, checker, serror))
             // serror is set

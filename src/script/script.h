@@ -566,6 +566,9 @@ public:
     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
     bool IsPushOnly() const;
 
+    bool IsPayToWitnessScriptHash() const;
+    bool IsPayToWitnessPubKeyHash() const;
+
     /**
      * Returns whether the script is guaranteed to fail at execution,
      * regardless of the initial stack. This allows outputs to be pruned
