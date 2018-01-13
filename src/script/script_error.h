@@ -55,6 +55,9 @@ typedef enum ScriptError_t
     /* SIGHASH_FORKID */
     SCRIPT_ERR_ILLEGAL_FORKID,
 
+    /* SEGWIT LOCKED */
+    SCRIPT_ERR_SEGWIT_LOCKED,
+
     SCRIPT_ERR_ERROR_COUNT
 } ScriptError;
 
