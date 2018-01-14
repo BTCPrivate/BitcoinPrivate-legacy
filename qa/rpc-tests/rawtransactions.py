@@ -24,7 +24,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.nodes = start_nodes(3, self.options.tmpdir)
 
         #connect to a local machine for debugging
-        #url = "http://bitcoinrpc:DP6DvqZtqXarpeNWyN3LZTFchCCyCUuHwNF7E8pX99x1@%s:%d" % ('127.0.0.1', 18232)
+        #url = "http://bitcoinrpc:DP6DvqZtqXarpeNWyN3LZTFchCCyCUuHwNF7E8pX99x1@%s:%d" % ('127.0.0.1', 17932)
         #proxy = AuthServiceProxy(url)
         #proxy.url = url # store URL on proxy for info
         #self.nodes.append(proxy)
@@ -131,7 +131,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawTx = self.nodes[2].createrawtransaction(inputs, outputs)
         rawTxPartialSigned = self.nodes[1].signrawtransaction(rawTx, inputs)
         assert_equal(rawTxPartialSigned['complete'], False) #node1 only has one key, can't comp. sign the tx
-        
+
         rawTxSigned = self.nodes[2].signrawtransaction(rawTx, inputs)
         assert_equal(rawTxSigned['complete'], True) #node2 can sign the tx compl., own two of three keys
         self.nodes[2].sendrawtransaction(rawTxSigned['hex'])
