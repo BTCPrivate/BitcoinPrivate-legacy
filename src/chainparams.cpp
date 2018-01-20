@@ -188,8 +188,12 @@ public:
 ////            "t3fmYHU2DnVaQgPhDs6TMFVmyC3qbWEWgXN", /* main-index: 52*/
 ////            "t3T4WmAp6nrLkJ24iPpGeCe1fSWTPv47ASG", /* main-index: 53*/
 ////            "t3fP6GrDM4QVwdjFhmCxGNbe7jXXXSDQ5dv", /* main-index: 54*/
-};
+        };
         assert(vFoundersRewardAddress.size() <= consensus.GetLastFoundersRewardBlockHeight());
+
+        //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
+        nForkStartHeight = 1000000;
+        nForkHeightRange = 65000;
     }
 };
 static CMainParams mainParams;

@@ -76,17 +76,19 @@ bool fAlerts = DEFAULT_ALERTS;
 #include <boost/range/combine.hpp>
 
 std::string forkUtxoPath;
-int64_t forkStartHeight = FORK_BLOCK_HEIGHT_START;
-int64_t forkHeightRange = FORK_BLOCK_HEIGHT_RANGE;
-int64_t forkCBPerBlock = FORK_COINBASE_PER_BLOCK;
+int64_t forkStartHeight;
+int64_t forkHeightRange;
+int64_t forkCBPerBlock;
+uint256 forkExtraHashSentinel = uint256S("f0f0f0f0fafafafaffffffffffffffffffffffffffffffffafafafaf0f0f0f0f");
+uint256 hashPid = GetRandHash();
 
 std::string GetUTXOFileName(int nHeight)
 {
-    boost::filesystem::path utxo_path(forkUtxoPath);                    
+    boost::filesystem::path utxo_path(forkUtxoPath);
     if (utxo_path.empty() || !utxo_path.has_filename())
     {
         LogPrintf("GetUTXOFileName(): UTXO path is not specified, add utxo-path=<path-to-utxop-files> to your btcprivate.conf and restart");
-        return ""; 
+        return "";
     }
 
     std::stringstream ss;
@@ -1403,18 +1405,10 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
 
-#ifdef FORK_CB_INPUT
-    if (!isForkBlock(nHeight)) { //when block is in fork region - don't check Solution and PoW
-#endif
-
     // Check the header
     if (!(CheckEquihashSolution(&block, Params()) &&
           CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
-
-#ifdef FORK_CB_INPUT
-    }
-#endif
 
     return true;
 }
@@ -1937,7 +1931,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
 
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
-        {        
+        {
             CCoinsModifier outs = view.ModifyCoins(hash);
             outs->ClearUnspendable();
 
@@ -2571,6 +2565,10 @@ bool static ConnectTip(CValidationState &state, CBlockIndex *pindexNew, CBlock *
     mempool.check(pcoinsTip);
     // Update chainActive & related variables.
     UpdateTip(pindexNew);
+    LogPrintf("NEWTIP %s %d %d %s %s\n",
+              hashPid.ToString(), pindexNew->nHeight, GetTime(),
+              pblock->vtx[0].vin[0].scriptSig.ToString(), pblock->GetHash().ToString());
+
     // Tell wallet about transactions that went from mempool
     // to conflicted:
     BOOST_FOREACH(const CTransaction &tx, txConflicted) {
@@ -3030,10 +3028,6 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
         return state.DoS(100, error("CheckBlockHeader(): block version too low"),
                          REJECT_INVALID, "version-too-low");
 
-#ifdef FORK_CB_INPUT
-    if (!isTipInForkRange()) { //when in FORK mode (tip is in forking region) - don't check Solution and PoW
-#endif
-
     // Check Equihash solution is valid
     if (fCheckPOW && !CheckEquihashSolution(&block, Params()))
         return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
@@ -3043,10 +3037,6 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
         return state.DoS(50, error("CheckBlockHeader(): proof of work failed"),
                          REJECT_INVALID, "high-hash");
-
-#ifdef FORK_CB_INPUT
-    }
-#endif
 
     // Check timestamp
     if (block.GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
@@ -3097,20 +3087,22 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
         return state.DoS(100, error("CheckBlock(): first tx is not coinbase"),
                          REJECT_INVALID, "bad-cb-missing");
 
-#ifdef FORK_CB_INPUT
-    if (isTipInForkRange()) { //when in FORK mode (tip is in forking region) blocks might have up to fork pre-defined value coinbases
+    //fork blocks might have up to fork pre-defined value coinbases and nothing else
+    if (looksLikeForkBlockHeader(block)) {
         if (block.vtx.size() > forkCBPerBlock)
-            return state.DoS(100, error("CheckBlock(): it is forking block but there are more than %d coinbase txns", forkCBPerBlock),
-                                REJECT_INVALID, "bad-cb-multiple");
+            return state.DoS(100, error("CheckBlock(): fork block: too many txns %d > %d coinbase txns", block.vtx.size(), forkCBPerBlock),
+                             REJECT_INVALID, "bad-fork-too-many-tx");
+
+        for (unsigned int i = 1; i < block.vtx.size(); i++)
+            if (!block.vtx[i].IsCoinBase())
+                return state.DoS(100, error("CheckBlock(): fork block: non-coinbase found"),
+                                 REJECT_INVALID, "bad-fork-non-cb");
     } else {
-#endif
         for (unsigned int i = 1; i < block.vtx.size(); i++)
             if (block.vtx[i].IsCoinBase())
                 return state.DoS(100, error("CheckBlock(): more than one coinbase"),
                                 REJECT_INVALID, "bad-cb-multiple");
-#ifdef FORK_CB_INPUT
     }
-#endif
 
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
@@ -3141,16 +3133,21 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     int nHeight = pindexPrev->nHeight+1;
 
+    // because we bypass checks using the indicia in the header
+    // we reject any blocks that look like fork blocks but really
+    // are non-fork blocks
+    if(looksLikeForkBlockHeader(block) && !isForkBlock(nHeight))
+        return state.DoS(100, error("%s: non-fork block looks like fork block", __func__),
+                         REJECT_INVALID, "bad-fork-hashreserved");
+
+    if(!looksLikeForkBlockHeader(block) && isForkBlock(nHeight))
+        return state.DoS(100, error("%s: fork block does not look like fork block", __func__),
+                         REJECT_INVALID, "bad-fork-hashreserved");
+
     // Check proof of work
-#ifdef FORK_CB_INPUT
-    if (!isForkBlock(nHeight)) { //If current block is FORK, don't check work required
-#endif
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, error("%s: incorrect proof of work", __func__),
                          REJECT_INVALID, "bad-diffbits");
-#ifdef FORK_CB_INPUT
-    }
-#endif
 
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -3305,7 +3302,8 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
             if (!if_utxo.is_open()) {
                 LogPrintf("AcceptBlock(): FORK Block - Cannot open UTXO file - %s\n", utxo_file_path);
             } else {
-                LogPrintf("AcceptBlock(): FORK Block - Validating block - %u with UTXO file - %s\n", nHeight, utxo_file_path);
+                LogPrintf("AcceptBlock(): FORK Block - Validating block - %u / %s  with UTXO file - %s\n",
+                          nHeight, block.GetHash().ToString(), utxo_file_path);
 
                 vector<pair<uint64_t, CScript> > txFromFile;
                 txFromFile.reserve(forkCBPerBlock);
@@ -3337,7 +3335,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
                     }
                     unsigned char* pks = (unsigned char*)pubKeyScript.get();
                     CScript script = CScript(pks, pks+pbsize);
-            
+
                     txFromFile.push_back(make_pair(amount, script));
 
                     if (!if_utxo.read(&term, 1)) {
@@ -3359,7 +3357,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
                                     REJECT_INVALID, "bad-fork-block");
                     pindex->nStatus |= BLOCK_FAILED_VALID;
                     setDirtyBlockIndex.insert(pindex);
-                    return false;                    
+                    return false;
                 }
 
                 int txid = 0;
@@ -3477,7 +3475,7 @@ bool TestBlockValidity(CValidationState &state, const CBlock& block, CBlockIndex
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
-    
+
     if (!CheckBlock(block, state, verifier, fCheckPOW, fCheckMerkleRoot))
         return false;
     if (!ContextualCheckBlock(block, state, pindexPrev))
@@ -3665,11 +3663,7 @@ bool static LoadBlockIndexDB()
 {
     const CChainParams& chainparams = Params();
 
-#ifdef FORK_CB_INPUT
-    if (!pblocktree->LoadBlockIndexGuts(forkStartHeight, forkStartHeight+forkHeightRange))
-#else
     if (!pblocktree->LoadBlockIndexGuts())
-#endif
         return false;
 
     boost::this_thread::interruption_point();

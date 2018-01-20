@@ -898,8 +898,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
 #ifdef FORK_CB_INPUT
     forkUtxoPath = GetArg("-utxo-path", "");
-    forkStartHeight = GetArg("-fork-startheight", FORK_BLOCK_HEIGHT_START);
-    forkHeightRange = GetArg("-fork-heightrange", FORK_BLOCK_HEIGHT_RANGE);
+    forkStartHeight = GetArg("-fork-startheight", chainparams.ForkStartHeight());
+    forkHeightRange = GetArg("-fork-heightrange", chainparams.ForkHeightRange());
     forkCBPerBlock = GetArg("-fork-cbperblock", FORK_COINBASE_PER_BLOCK);
 #endif
 

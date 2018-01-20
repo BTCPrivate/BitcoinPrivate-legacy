@@ -272,11 +272,7 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
     return true;
 }
 
-#ifdef FORK_CB_INPUT
-bool CBlockTreeDB::LoadBlockIndexGuts(int64_t forkStart, int64_t forkStop)
-#else
 bool CBlockTreeDB::LoadBlockIndexGuts()
-#endif
 {
     boost::scoped_ptr<leveldb::Iterator> pcursor(NewIterator());
 
@@ -308,6 +304,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->hashAnchor     = diskindex.hashAnchor;
                 pindexNew->nVersion       = diskindex.nVersion;
                 pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
+                pindexNew->hashReserved   = diskindex.hashReserved;
                 pindexNew->nTime          = diskindex.nTime;
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
@@ -315,14 +312,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-#ifdef FORK_CB_INPUT
-                if (pindexNew->nHeight < forkStart || pindexNew->nHeight >= forkStop) {
-#endif
                 if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
                     return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
-#ifdef FORK_CB_INPUT
-                }
-#endif
 
                 pcursor->Next();
             } else {

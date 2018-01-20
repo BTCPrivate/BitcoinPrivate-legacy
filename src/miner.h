@@ -50,7 +50,8 @@ void GenerateBitcoins(bool fGenerate, int nThreads);
 void UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
 
 #ifdef FORK_CB_INPUT
-CBlockTemplate* CreateNewForkBlock();
+CBlockTemplate* CreateNewForkBlock(bool&);
+CBlockTemplate* CreateNewForkBlock(bool&,const int);
 #endif
 
 #endif // BITCOIN_MINER_H

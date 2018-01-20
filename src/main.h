@@ -162,11 +162,11 @@ void RegisterNodeSignals(CNodeSignals& nodeSignals);
 /** Unregister a network node */
 void UnregisterNodeSignals(CNodeSignals& nodeSignals);
 
-/** 
+/**
  * Process an incoming block. This only returns after the best known valid
  * block is made active. Note that it does not, however, guarantee that the
  * specific block passed to it has been checked for validity!
- * 
+ *
  * @param[out]  state   This may be set to an Error state if any error occurred processing it, including during validation/connection/etc of otherwise unrelated blocks during reorganisation; or it may be set to an Invalid state if pblock is itself invalid (but this is not guaranteed even when the block is checked). If you want to *possibly* get feedback on whether pblock is valid, you must also install a CValidationInterface (see validationinterface.h) - this will have its BlockChecked method called whenever *any* block completes validation.
  * @param[in]   pfrom   The node which we are receiving the block from; it is added to mapBlockSource and may be penalised if the block is invalid.
  * @param[in]   pblock  The block we want to process.
@@ -295,7 +295,7 @@ CAmount GetMinRelayFee(const CTransaction& tx, unsigned int nBytes, bool fAllowF
 /**
  * Check transaction inputs, and make sure any
  * pay-to-script-hash transactions are evaluating IsStandard scripts
- * 
+ *
  * Why bother? To avoid denial-of-service attacks; an attacker
  * can submit a standard HASH... OP_EQUAL transaction,
  * which will get accepted into blocks. The redemption
@@ -304,14 +304,14 @@ CAmount GetMinRelayFee(const CTransaction& tx, unsigned int nBytes, bool fAllowF
  *   DUP CHECKSIG DROP ... repeated 100 times... OP_1
  */
 
-/** 
+/**
  * Check for standard transaction types
  * @param[in] mapInputs    Map of previous transactions that have outputs we're spending
  * @return True if all inputs (scriptSigs) use only standard transaction forms
  */
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
-/** 
+/**
  * Count ECDSA signature operations the old-fashioned (pre-0.6) way
  * @return number of sigops this transaction's outputs will produce when spent
  * @see CTransaction::FetchInputs
@@ -320,7 +320,7 @@ unsigned int GetLegacySigOpCount(const CTransaction& tx);
 
 /**
  * Count ECDSA signature operations in pay-to-script-hash inputs.
- * 
+ *
  * @param[in] mapInputs Map of previous transactions that have outputs we're spending
  * @return maximum number of sigops required to validate this transaction's inputs
  * @see CTransaction::FetchInputs
@@ -364,9 +364,9 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime);
  */
 bool CheckFinalTx(const CTransaction &tx, int flags = -1);
 
-/** 
+/**
  * Closure representing one script verification
- * Note that this stores references to the spending transaction 
+ * Note that this stores references to the spending transaction
  */
 class CScriptCheck
 {
@@ -542,14 +542,13 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 }
 
 #ifdef FORK_CB_INPUT
-#define FORK_BLOCK_HEIGHT_START 1000000 //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
-#define FORK_BLOCK_HEIGHT_RANGE 65000
 #define FORK_COINBASE_PER_BLOCK 10000
 
 extern std::string forkUtxoPath;
 extern int64_t forkStartHeight;
 extern int64_t forkHeightRange;
 extern int64_t forkCBPerBlock;
+extern uint256 forkExtraHashSentinel;
 
 std::string GetUTXOFileName(int nHeight);
 
@@ -586,17 +585,15 @@ inline bool isForkBlock(int nHeight)
 {
     return (nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
 }
-inline bool isTipInForkRange()
+
+inline bool looksLikeForkBlockHeader(const CBlockHeader& header)
 {
-    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight): false;
+    return header.hashReserved == forkExtraHashSentinel;
 }
-inline bool isNextTipInForkRange()
-{
-    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight + 1): false;
-}
+
 inline uint64_t bytes2uint64(char *array)
 {
-    uint64_t x = 
+    uint64_t x =
     static_cast<uint64_t>(array[0])       & 0x00000000000000ff |
     static_cast<uint64_t>(array[1]) << 8  & 0x000000000000ff00 |
     static_cast<uint64_t>(array[2]) << 16 & 0x0000000000ff0000 |
@@ -608,5 +605,7 @@ inline uint64_t bytes2uint64(char *array)
     return x;
 }
 #endif
+
+extern uint256 hashPid;
 
 #endif // BITCOIN_MAIN_H
