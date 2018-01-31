@@ -20,6 +20,7 @@
 
 #include <univalue.h>
 
+
 extern UniValue read_json(const std::string& jsondata);
 
 // Old script.cpp SignatureHash function
@@ -33,6 +34,7 @@ uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, un
     }
     CMutableTransaction txTmp(txTo);
 
+    nHashType |= SIGHASH_FORKID;
     // Blank out other inputs' signatures
     for (unsigned int i = 0; i < txTmp.vin.size(); i++)
         txTmp.vin[i].scriptSig = CScript();
@@ -69,7 +71,7 @@ uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, un
     }
 
     // Blank out other inputs completely, not recommended for open transactions
-    if (nHashType & SIGHASH_ANYONECANPAY)
+    if ((nHashType & 0x1f) == SIGHASH_ANYONECANPAY)
     {
         txTmp.vin[0] = txTmp.vin[nIn];
         txTmp.vin.resize(1);
@@ -98,8 +100,14 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
     tx.vout.clear();
     tx.nLockTime = (insecure_rand() % 2) ? insecure_rand() : 0;
     int ins = (insecure_rand() % 4) + 1;
-    int outs = fSingle ? ins : (insecure_rand() % 4) + 1;
+    int outs = fSingle ? 1 : (insecure_rand() % 4) + 1;
     int joinsplits = (insecure_rand() % 4);
+
+    if(fSingle) {
+      outs++;
+   }
+   std::cout << "fSingle " << fSingle << " ins " << ins << " outs " << outs << "\n";
+
     for (int in = 0; in < ins; in++) {
         tx.vin.push_back(CTxIn());
         CTxIn &txin = tx.vin.back();
@@ -143,13 +151,15 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
         // Empty output script.
         CScript scriptCode;
         CTransaction signTx(tx);
-        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL);
+        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL|SIGHASH_FORKID);
 
         assert(crypto_sign_detached(&tx.joinSplitSig[0], NULL,
                                     dataToBeSigned.begin(), 32,
                                     joinSplitPrivKey
                                     ) == 0);
     }
+    std::cout << "done\n";
+
 }
 
 BOOST_FIXTURE_TEST_SUITE(sighash_tests, BasicTestingSetup)
@@ -170,12 +180,13 @@ BOOST_AUTO_TEST_CASE(sighash_test)
     for (int i=0; i<nRandomTests; i++) {
         int nHashType = insecure_rand();
         CMutableTransaction txTo;
-        RandomTransaction(txTo, (nHashType & 0x1f) == SIGHASH_SINGLE);
+        RandomTransaction(txTo, nHashType & 0x1f == SIGHASH_SINGLE);
         CScript scriptCode;
         RandomScript(scriptCode);
         int nIn = insecure_rand() % txTo.vin.size();
 
         uint256 sh, sho;
+        nHashType |= SIGHASH_FORKID;
         sho = SignatureHashOld(scriptCode, txTo, nIn, nHashType);
         sh = SignatureHash(scriptCode, txTo, nIn, nHashType);
         #if defined(PRINT_SIGHASH_JSON)
