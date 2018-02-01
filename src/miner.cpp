@@ -257,11 +257,6 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    if (Params().MineBlocksOnDemand())
-        pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
-
     // Add dummy coinbase tx as first transaction
     pblock->vtx.push_back(CTransaction());
     pblocktemplate->vTxFees.push_back(-1); // updated at end
