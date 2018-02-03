@@ -998,16 +998,7 @@ bool CheckTransactionWithoutProofVerification(const CTransaction& tx, CValidatio
             CScript scriptCode;
             uint256 dataToBeSigned;
             try {
-               //
-               // NB SIGHASH_ALL|SIGHASH_FORKID
-               //
-               int foo = SIGHASH_ALL|SIGHASH_FORKID;
-
-               if(foo == 0x43) {
-                  cout << "sighash_all|sighash_forkid " << std::hex << foo << " need " << 0x41 << "\n";
-               }
-
-                dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, 0x41);
+                dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, SIGHASH_ALL|SIGHASH_FORKID);
             } catch (std::logic_error ex) {
                 return state.DoS(100, error("CheckTransaction(): error computing signature hash"),
                                  REJECT_INVALID, "error-computing-signature-hash");

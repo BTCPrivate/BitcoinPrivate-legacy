@@ -346,7 +346,7 @@ BOOST_AUTO_TEST_CASE(script_build)
 
     bad.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey1) << OP_CHECKSIG,
                               "P2PK anyonecanpay marked with normal hashtype", 0
-                           ).PushSig(keys.key1, SIGHASH_ALL|SIGHASH_ANYONECANPAY| SIGHASH_FORKID).EditPush(70, "C3", "43"));
+                           ).PushSig(keys.key1, SIGHASH_ALL|SIGHASH_ANYONECANPAY| SIGHASH_FORKID).EditPush(70, "C1", "03"));
     good.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey0C) << OP_CHECKSIG,
                                "P2SH(P2PK)", SCRIPT_VERIFY_P2SH|SCRIPT_ENABLE_SIGHASH_FORKID, true
                               ).PushSig(keys.key0).PushRedeem());
@@ -430,7 +430,7 @@ BOOST_AUTO_TEST_CASE(script_build)
 
     bad.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey2C) << OP_CHECKSIG,
                                "P2PK with multi-byte hashtype", 0
-                            ).PushSig(keys.key2, SIGHASH_ALL| SIGHASH_FORKID).EditPush(70, "43", "103"));
+                            ).PushSig(keys.key2, SIGHASH_ALL| SIGHASH_FORKID).EditPush(70, "41", "101"));
 
     good.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey2C) << OP_CHECKSIG,
                                "P2PK with high S but no LOW_S", 0

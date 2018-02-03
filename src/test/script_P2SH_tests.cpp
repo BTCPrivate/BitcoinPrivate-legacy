@@ -334,9 +334,9 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
         txTo.vin[i].prevout.hash = txFrom.GetHash();
     }
 
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 0, SIGHASH_FORKID));
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 1, SIGHASH_FORKID));
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 2, SIGHASH_FORKID));
+    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 0,SIGHASH_ALL| SIGHASH_FORKID));
+    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 1,SIGHASH_ALL| SIGHASH_FORKID));
+    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 2,SIGHASH_ALL| SIGHASH_FORKID));
 
     // SignSignature doesn't know how to sign these. We're
     // not testing validating signatures, so just create
