@@ -58,6 +58,7 @@ testScriptsExt=(
     'smartfees.py'
     'maxblocksinflight.py'
     'invalidblockrequest.py'
+    'p2p-versionbits-warning.py'
 #    'forknotify.py'
     'p2p-acceptblock.py'
 );
