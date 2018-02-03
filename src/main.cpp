@@ -1003,7 +1003,9 @@ bool CheckTransactionWithoutProofVerification(const CTransaction& tx, CValidatio
                //
                int foo = SIGHASH_ALL|SIGHASH_FORKID;
 
-               cout << "sighash_all|sighash_forkid " << std::hex << foo << " need " << 0x41 << "\n";
+               if(foo == 0x43) {
+                  cout << "sighash_all|sighash_forkid " << std::hex << foo << " need " << 0x41 << "\n";
+               }
 
                 dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, 0x41);
             } catch (std::logic_error ex) {

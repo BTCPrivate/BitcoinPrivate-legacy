@@ -189,22 +189,9 @@ BOOST_AUTO_TEST_CASE(sighash_test)
 
         uint256 sh, sho;
 
-        //
-        // NB Temporarily disabled pending determination of usefulness
-        //
-        //
-//        sho = SignatureHashOld(scriptCode, txTo, nIn, nHashType);
-
-        //
-        // NB At the time I wrote this, on the versions of everything I was using
-        //    the following passes a 0x43 to SignatureHash when nHashType == SIGHASH_ALL
-        //
-        //    sh = SignatureHash(scriptCode, txTo, nIn, nHashType | SIGHASH_FORKID);
-        //
-        //    I suspect that the compiler isn't expecting the enum to be used both
-        //    as an integer and as a bit-field.
-        //
+        sho = SignatureHashOld(scriptCode, txTo, nIn, nHashType);
         sh = SignatureHash(scriptCode, txTo, nIn, nHashType);
+
         #if defined(PRINT_SIGHASH_JSON)
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << txTo;
@@ -214,13 +201,13 @@ BOOST_AUTO_TEST_CASE(sighash_test)
         std::cout << HexStr(scriptCode) << "\", ";
         std::cout << nIn << ", ";
         std::cout << nHashType << ", \"";
-        std::cout << sh.GetHex() << "\"]";
+        std::cout << sho.GetHex() << "\"]";
         if (i+1 != nRandomTests) {
           std::cout << ",";
         }
         std::cout << "\n";
         #endif
-//        BOOST_CHECK(sh == sho);
+        BOOST_CHECK(sh == sho);
     }
     #if defined(PRINT_SIGHASH_JSON)
     std::cout << "]\n";
