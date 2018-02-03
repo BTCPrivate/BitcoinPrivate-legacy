@@ -164,7 +164,7 @@ BOOST_FIXTURE_TEST_SUITE(sighash_tests, BasicTestingSetup)
 //    the first step rebuilds the json, the second step result in
 //    data/sighash.json.h being recreated and used in a recompile
 //
-//#define PRINT_SIGHASH_JSON
+// #define PRINT_SIGHASH_JSON
 
 BOOST_AUTO_TEST_CASE(sighash_test)
 {
@@ -189,16 +189,11 @@ BOOST_AUTO_TEST_CASE(sighash_test)
 
         uint256 sh, sho;
 
-        if(nHashType == 1) {
-           nHashType = 0x41;
-        }
         //
         // NB Temporarily disabled pending determination of usefulness
         //
         //
-        // sho = SignatureHashOld(scriptCode, txTo, nIn, nHashType);
-        //
-
+//        sho = SignatureHashOld(scriptCode, txTo, nIn, nHashType);
 
         //
         // NB At the time I wrote this, on the versions of everything I was using
@@ -219,7 +214,7 @@ BOOST_AUTO_TEST_CASE(sighash_test)
         std::cout << HexStr(scriptCode) << "\", ";
         std::cout << nIn << ", ";
         std::cout << nHashType << ", \"";
-        std::cout << sho.GetHex() << "\"]";
+        std::cout << sh.GetHex() << "\"]";
         if (i+1 != nRandomTests) {
           std::cout << ",";
         }
@@ -235,7 +230,6 @@ BOOST_AUTO_TEST_CASE(sighash_test)
 // Goal: check that SignatureHash generates correct hash
 BOOST_AUTO_TEST_CASE(sighash_from_data)
 {
-   return;
     UniValue tests = read_json(std::string(json_tests::sighash, json_tests::sighash + sizeof(json_tests::sighash)));
 
     for (size_t idx = 0; idx < tests.size(); idx++) {
@@ -248,8 +242,8 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
         }
         if (test.size() == 1) continue; // comment
 
-       std::string raw_tx, raw_script, sigHashHex;
-        volatile int nIn, nHashType;
+        std::string raw_tx, raw_script, sigHashHex;
+        int nIn, nHashType;
         uint256 sh;
         CTransaction tx;
         CScript scriptCode = CScript();
