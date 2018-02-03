@@ -50,6 +50,7 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
+        consensus.nPowDifficultyBombHeight = 600000;
 
         pchMessageStart[0] = 0xa8;
         pchMessageStart[1] = 0xea;
@@ -209,6 +210,8 @@ public:
         consensus.powLimit = uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
         consensus.fPowAllowMinDifficultyBlocks = true;
+        consensus.nPowDifficultyBombHeight = 600000;
+
         pchMessageStart[0] = 0xf6;
         pchMessageStart[1] = 0x1b;
         pchMessageStart[2] = 0xf6;
@@ -300,6 +303,8 @@ public:
         assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
         consensus.nPowMaxAdjustDown = 0; // Turn off adjustment down
         consensus.nPowMaxAdjustUp = 0; // Turn off adjustment up
+        consensus.nPowDifficultyBombHeight = 600000;
+
         pchMessageStart[0] = 0xaa;
         pchMessageStart[1] = 0xe8;
         pchMessageStart[2] = 0x3f;
