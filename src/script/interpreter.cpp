@@ -1212,10 +1212,10 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
 
     if (flags & SCRIPT_VERIFY_P2SH)
         stackCopy = stack;
-    if (!EvalScript(stack, scriptPubKey, flags, checker, serror)){
+    if (!EvalScript(stack, scriptPubKey, flags, checker, serror))
       // serror is set
       return false;
-   }
+
 
     if (stack.empty())
         return set_error(serror, SCRIPT_ERR_EVAL_FALSE);
