@@ -67,22 +67,22 @@ BOOST_AUTO_TEST_CASE(addrman_simple)
     BOOST_CHECK(addr_null.ToString() == "[::]:0");
 
     // Test 2: Does Addrman::Add work as expected.
-    CService addr1 = CService("250.1.1.1", 7933);
+    CService addr1 = CService("250.1.1.1", 8333);
     addrman.Add(CAddress(addr1), source);
     BOOST_CHECK(addrman.size() == 1);
     CAddrInfo addr_ret1 = addrman.Select();
-    BOOST_CHECK(addr_ret1.ToString() == "250.1.1.1:7933");
+    BOOST_CHECK(addr_ret1.ToString() == "250.1.1.1:8333");
 
     // Test 3: Does IP address deduplication work correctly.
     //  Expected dup IP should not be added.
-    CService addr1_dup = CService("250.1.1.1", 7933);
+    CService addr1_dup = CService("250.1.1.1", 8333);
     addrman.Add(CAddress(addr1_dup), source);
     BOOST_CHECK(addrman.size() == 1);
 
 
     // Test 5: New table has one addr and we add a diff addr we should
     //  have two addrs.
-    CService addr2 = CService("250.1.1.2", 7933);
+    CService addr2 = CService("250.1.1.2", 8333);
     addrman.Add(CAddress(addr2), source);
     BOOST_CHECK(addrman.size() == 2);
 
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(addrman_ports)
     BOOST_CHECK(addrman.size() == 0);
 
     // Test 7; Addr with same IP but diff port does not replace existing addr.
-    CService addr1 = CService("250.1.1.1", 7933);
+    CService addr1 = CService("250.1.1.1", 8333);
     addrman.Add(CAddress(addr1), source);
     BOOST_CHECK(addrman.size() == 1);
 
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(addrman_ports)
     addrman.Add(CAddress(addr1_port), source);
     BOOST_CHECK(addrman.size() == 1);
     CAddrInfo addr_ret2 = addrman.Select();
-    BOOST_CHECK(addr_ret2.ToString() == "250.1.1.1:7933");
+    BOOST_CHECK(addr_ret2.ToString() == "250.1.1.1:8333");
 
     // Test 8: Add same IP but diff port to tried table, it doesn't get added.
     //  Perhaps this is not ideal behavior but it is the current behavior.
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(addrman_ports)
     BOOST_CHECK(addrman.size() == 1);
     bool newOnly = true;
     CAddrInfo addr_ret3 = addrman.Select(newOnly);
-    BOOST_CHECK(addr_ret3.ToString() == "250.1.1.1:7933");
+    BOOST_CHECK(addr_ret3.ToString() == "250.1.1.1:8333");
 }
 
 
@@ -135,13 +135,13 @@ BOOST_AUTO_TEST_CASE(addrman_select)
     CNetAddr source = CNetAddr("252.2.2.2");
 
     // Test 9: Select from new with 1 addr in new.
-    CService addr1 = CService("250.1.1.1", 7933);
+    CService addr1 = CService("250.1.1.1", 8333);
     addrman.Add(CAddress(addr1), source);
     BOOST_CHECK(addrman.size() == 1);
 
     bool newOnly = true;
     CAddrInfo addr_ret1 = addrman.Select(newOnly);
-    BOOST_CHECK(addr_ret1.ToString() == "250.1.1.1:7933");
+    BOOST_CHECK(addr_ret1.ToString() == "250.1.1.1:8333");
 
     // Test 10: move addr to tried, select from new expected nothing returned.
     addrman.Good(CAddress(addr1));
@@ -150,40 +150,40 @@ BOOST_AUTO_TEST_CASE(addrman_select)
     BOOST_CHECK(addr_ret2.ToString() == "[::]:0");
 
     CAddrInfo addr_ret3 = addrman.Select();
-    BOOST_CHECK(addr_ret3.ToString() == "250.1.1.1:7933");
+    BOOST_CHECK(addr_ret3.ToString() == "250.1.1.1:8333");
 
     BOOST_CHECK(addrman.size() == 1);
 
 
     // Add three addresses to new table.
-    CService addr2 = CService("250.3.1.1", 7933);
+    CService addr2 = CService("250.3.1.1", 8333);
     CService addr3 = CService("250.3.2.2", 9999);
     CService addr4 = CService("250.3.3.3", 9999);
 
-    addrman.Add(CAddress(addr2), CService("250.3.1.1", 7933));
-    addrman.Add(CAddress(addr3), CService("250.3.1.1", 7933));
-    addrman.Add(CAddress(addr4), CService("250.4.1.1", 7933));
+    addrman.Add(CAddress(addr2), CService("250.3.1.1", 8333));
+    addrman.Add(CAddress(addr3), CService("250.3.1.1", 8333));
+    addrman.Add(CAddress(addr4), CService("250.4.1.1", 8333));
 
     // Add three addresses to tried table.
-    CService addr5 = CService("250.4.4.4", 7933);
+    CService addr5 = CService("250.4.4.4", 8333);
     CService addr6 = CService("250.4.5.5", 7777);
-    CService addr7 = CService("250.4.6.6", 7933);
+    CService addr7 = CService("250.4.6.6", 8333);
 
-    addrman.Add(CAddress(addr5), CService("250.3.1.1", 7933));
+    addrman.Add(CAddress(addr5), CService("250.3.1.1", 8333));
     addrman.Good(CAddress(addr5));
-    addrman.Add(CAddress(addr6), CService("250.3.1.1", 7933));
+    addrman.Add(CAddress(addr6), CService("250.3.1.1", 8333));
     addrman.Good(CAddress(addr6));
-    addrman.Add(CAddress(addr7), CService("250.1.1.3", 7933));
+    addrman.Add(CAddress(addr7), CService("250.1.1.3", 8333));
     addrman.Good(CAddress(addr7));
 
     // Test 11: 6 addrs + 1 addr from last test = 7.
     BOOST_CHECK(addrman.size() == 7);
 
     // Test 12: Select pulls from new and tried regardless of port number.
-    BOOST_CHECK(addrman.Select().ToString() == "250.4.6.6:7933");
+    BOOST_CHECK(addrman.Select().ToString() == "250.4.6.6:8333");
     BOOST_CHECK(addrman.Select().ToString() == "250.3.2.2:9999");
     BOOST_CHECK(addrman.Select().ToString() == "250.3.3.3:9999");
-    BOOST_CHECK(addrman.Select().ToString() == "250.4.4.4:7933");
+    BOOST_CHECK(addrman.Select().ToString() == "250.4.4.4:8333");
 }
 
 BOOST_AUTO_TEST_CASE(addrman_new_collisions)
@@ -255,9 +255,9 @@ BOOST_AUTO_TEST_CASE(addrman_find)
 
     BOOST_CHECK(addrman.size() == 0);
 
-    CAddress addr1 = CAddress(CService("250.1.2.1", 7933));
+    CAddress addr1 = CAddress(CService("250.1.2.1", 8333));
     CAddress addr2 = CAddress(CService("250.1.2.1", 9999));
-    CAddress addr3 = CAddress(CService("251.255.2.1", 7933));
+    CAddress addr3 = CAddress(CService("251.255.2.1", 8333));
 
     CNetAddr source1 = CNetAddr("250.1.2.1");
     CNetAddr source2 = CNetAddr("250.1.2.2");
@@ -270,7 +270,7 @@ BOOST_AUTO_TEST_CASE(addrman_find)
     CAddrInfo* info1 = addrman.Find(addr1);
     BOOST_CHECK(info1);
     if (info1)
-        BOOST_CHECK(info1->ToString() == "250.1.2.1:7933");
+        BOOST_CHECK(info1->ToString() == "250.1.2.1:8333");
 
     // Test 18; Find does not discriminate by port number.
     CAddrInfo* info2 = addrman.Find(addr2);
@@ -282,7 +282,7 @@ BOOST_AUTO_TEST_CASE(addrman_find)
     CAddrInfo* info3 = addrman.Find(addr3);
     BOOST_CHECK(info3);
     if (info3)
-        BOOST_CHECK(info3->ToString() == "251.255.2.1:7933");
+        BOOST_CHECK(info3->ToString() == "251.255.2.1:8333");
 }
 
 BOOST_AUTO_TEST_CASE(addrman_create)
@@ -294,17 +294,17 @@ BOOST_AUTO_TEST_CASE(addrman_create)
 
     BOOST_CHECK(addrman.size() == 0);
 
-    CAddress addr1 = CAddress(CService("250.1.2.1", 7933));
+    CAddress addr1 = CAddress(CService("250.1.2.1", 8333));
     CNetAddr source1 = CNetAddr("250.1.2.1");
 
     int nId;
     CAddrInfo* pinfo = addrman.Create(addr1, source1, &nId);
 
     // Test 20: The result should be the same as the input addr.
-    BOOST_CHECK(pinfo->ToString() == "250.1.2.1:7933");
+    BOOST_CHECK(pinfo->ToString() == "250.1.2.1:8333");
 
     CAddrInfo* info2 = addrman.Find(addr1);
-    BOOST_CHECK(info2->ToString() == "250.1.2.1:7933");
+    BOOST_CHECK(info2->ToString() == "250.1.2.1:8333");
 }
 
 
@@ -317,7 +317,7 @@ BOOST_AUTO_TEST_CASE(addrman_delete)
 
     BOOST_CHECK(addrman.size() == 0);
 
-    CAddress addr1 = CAddress(CService("250.1.2.1", 7933));
+    CAddress addr1 = CAddress(CService("250.1.2.1", 8333));
     CNetAddr source1 = CNetAddr("250.1.2.1");
 
     int nId;
@@ -344,15 +344,15 @@ BOOST_AUTO_TEST_CASE(addrman_getaddr)
     vector<CAddress> vAddr1 = addrman.GetAddr();
     BOOST_CHECK(vAddr1.size() == 0);
 
-    CAddress addr1 = CAddress(CService("250.250.2.1", 7933));
+    CAddress addr1 = CAddress(CService("250.250.2.1", 8333));
     addr1.nTime = GetAdjustedTime(); // Set time so isTerrible = false
     CAddress addr2 = CAddress(CService("250.251.2.2", 9999));
     addr2.nTime = GetAdjustedTime();
-    CAddress addr3 = CAddress(CService("251.252.2.3", 7933));
+    CAddress addr3 = CAddress(CService("251.252.2.3", 8333));
     addr3.nTime = GetAdjustedTime();
-    CAddress addr4 = CAddress(CService("252.253.3.4", 7933));
+    CAddress addr4 = CAddress(CService("252.253.3.4", 8333));
     addr4.nTime = GetAdjustedTime();
-    CAddress addr5 = CAddress(CService("252.254.4.5", 7933));
+    CAddress addr5 = CAddress(CService("252.254.4.5", 8333));
     addr5.nTime = GetAdjustedTime();
     CNetAddr source1 = CNetAddr("250.1.2.1");
     CNetAddr source2 = CNetAddr("250.2.3.3");
@@ -365,7 +365,7 @@ BOOST_AUTO_TEST_CASE(addrman_getaddr)
     addrman.Add(addr5, source1);
 
     // GetAddr returns 23% of addresses, 23% of 5 is 1 rounded down.
-    BOOST_CHECK(addrman.GetAddr().size() == 1);
+    BOOST_CHECK(addrman.GetAddr().size() == 1); 
 
     // Test 24: Ensure GetAddr works with new and tried addresses.
     addrman.Good(CAddress(addr1));
@@ -379,7 +379,7 @@ BOOST_AUTO_TEST_CASE(addrman_getaddr)
         int octet3 = (i / (256 * 2)) % 256;
         string strAddr = boost::to_string(octet1) + "." + boost::to_string(octet2) + "." + boost::to_string(octet3) + ".23";
         CAddress addr = CAddress(CService(strAddr));
-
+        
         // Ensure that for all addrs in addrman, isTerrible == false.
         addr.nTime = GetAdjustedTime();
         addrman.Add(addr, CNetAddr(strAddr));
@@ -403,7 +403,7 @@ BOOST_AUTO_TEST_CASE(caddrinfo_get_tried_bucket)
     // Set addrman addr placement to be deterministic.
     addrman.MakeDeterministic();
 
-    CAddress addr1 = CAddress(CService("250.1.1.1", 7933));
+    CAddress addr1 = CAddress(CService("250.1.1.1", 8333));
     CAddress addr2 = CAddress(CService("250.1.1.1", 9999));
 
     CNetAddr source1 = CNetAddr("250.1.1.1");
@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(caddrinfo_get_new_bucket)
     // Set addrman addr placement to be deterministic.
     addrman.MakeDeterministic();
 
-    CAddress addr1 = CAddress(CService("250.1.2.1", 7933));
+    CAddress addr1 = CAddress(CService("250.1.2.1", 8333));
     CAddress addr2 = CAddress(CService("250.1.2.1", 9999));
 
     CNetAddr source1 = CNetAddr("250.1.2.1");
