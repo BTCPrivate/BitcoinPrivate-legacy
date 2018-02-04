@@ -448,7 +448,7 @@ BOOST_AUTO_TEST_CASE(anchors_flush_test)
         cache.PushAnchor(tree);
         cache.Flush();
     }
-    
+
     {
         CCoinsViewCacheTest cache(&base);
         ZCIncrementalMerkleTree tree;
@@ -595,7 +595,7 @@ BOOST_AUTO_TEST_CASE(anchors_test)
         {
             ZCIncrementalMerkleTree test_tree2;
             cache.GetAnchorAt(newrt, test_tree2);
-            
+
             BOOST_CHECK(test_tree2.root() == newrt);
         }
 
@@ -764,9 +764,15 @@ BOOST_AUTO_TEST_CASE(coins_coinbase_spends)
     mtx2.vout[0].scriptPubKey = CScript() << OP_1;
 
     {
+        auto consensus = Params().GetConsensus();
         CTransaction tx2(mtx2);
-        BOOST_CHECK(!Consensus::CheckTxInputs(tx2, state, cache, 100+COINBASE_MATURITY, Params().GetConsensus()));
-        BOOST_CHECK(state.GetRejectReason() == "bad-txns-coinbase-spend-has-transparent-outputs");
+
+        if(consensus.fCoinbaseMustBeProtected) {
+            BOOST_CHECK(!Consensus::CheckTxInputs(tx2, state, cache, 100+COINBASE_MATURITY, consensus));
+            BOOST_CHECK(state.GetRejectReason() == "bad-txns-coinbase-spend-has-transparent-outputs");
+        } else {
+            BOOST_CHECK(Consensus::CheckTxInputs(tx2, state, cache, 100+COINBASE_MATURITY, consensus));
+        }
     }
 }
 
