@@ -50,15 +50,13 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
-        /**
-         * The message start string should be awesome! ⓩ❤
-         */
-        pchMessageStart[0] = 0x24;
-        pchMessageStart[1] = 0xe9;
-        pchMessageStart[2] = 0x27;
-        pchMessageStart[3] = 0x64;
+
+        pchMessageStart[0] = 0xa8;
+        pchMessageStart[1] = 0xea;
+        pchMessageStart[2] = 0xb2;
+        pchMessageStart[3] = 0xed;
         vAlertPubKey = ParseHex("04f2cd746e629ffd320a81287474c98c2ad15d15b0a210b0144edcd8f3e1301c6311fd751fa34ba17d88090374cfec7cd9aaca55a5a0c4456511acc01b922005de");
-        nDefaultPort = 8033;
+        nDefaultPort = 7933;
         nMaxTipAge = 24 * 60 * 60;
         nPruneAfterHeight = 100000;
         const size_t N = 200, K = 9;
