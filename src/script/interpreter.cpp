@@ -213,7 +213,6 @@ bool static CheckSignatureEncoding(const valtype &vchSig, unsigned int flags, Sc
     if (!IsValidSignatureEncoding(vchSig)) {
         return set_error(serror, SCRIPT_ERR_SIG_DER);
     } else if ((flags & SCRIPT_VERIFY_LOW_S) != 0 && !IsLowDERSignature(vchSig, serror)) {
-        set_error(serror, SCRIPT_ERR_SIG_DER);
         return false;
     }
 
@@ -1212,11 +1211,8 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
         return set_error(serror, SCRIPT_ERR_SEGWIT_LOCKED);
 
     vector<vector<unsigned char> > stack, stackCopy;
-    if (!EvalScript(stack, scriptSig, flags, checker, serror)) {
+    if (!EvalScript(stack, scriptSig, flags, checker, serror))
       return false;
-   }
-
-
     if (flags & SCRIPT_VERIFY_P2SH)
         stackCopy = stack;
     if (!EvalScript(stack, scriptPubKey, flags, checker, serror))
