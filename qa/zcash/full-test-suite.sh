@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 #
-# Execute all of the automated tests related to Zcash.
+# Execute all of the automated tests related to BitcoinPrivate.
 #
 
 import argparse
@@ -62,8 +62,8 @@ def check_security_hardening():
     # PIE, RELRO, Canary, and NX are tested by make check-security.
     ret &= subprocess.call(['make', '-C', repofile('src'), 'check-security']) == 0
 
-    ret &= test_rpath_runpath('src/zcashd')
-    ret &= test_rpath_runpath('src/zcash-cli')
+    ret &= test_rpath_runpath('src/btcpd')
+    ret &= test_rpath_runpath('src/btcpd-cli')
     ret &= test_rpath_runpath('src/zcash-gtest')
     ret &= test_rpath_runpath('src/zcash-tx')
     ret &= test_rpath_runpath('src/test/test_bitcoin')
@@ -71,8 +71,8 @@ def check_security_hardening():
 
     # NOTE: checksec.sh does not reliably determine whether FORTIFY_SOURCE
     # is enabled for the entire binary. See issue #915.
-    ret &= test_fortify_source('src/zcashd')
-    ret &= test_fortify_source('src/zcash-cli')
+    ret &= test_fortify_source('src/btcpd')
+    ret &= test_fortify_source('src/btcpd-cli')
     ret &= test_fortify_source('src/zcash-gtest')
     ret &= test_fortify_source('src/zcash-tx')
     ret &= test_fortify_source('src/test/test_bitcoin')
