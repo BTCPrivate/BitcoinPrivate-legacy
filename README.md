@@ -27,6 +27,13 @@ Install
 # Run
 ./src/btcpd
 ```
+Config
+```{r, engine='bash'}
+mkdir -p ~/.btcprivate
+echo "addnode=btcprivate.org" >~/.btcprivate/btcprivate.conf
+echo "rpcuser=username" >>~/.btcprivate/btcprivate.conf
+echo "rpcpassword=`head -c 32 /dev/urandom | base64`" >>~/.btcprivate/btcprivate.conf
+```
 
 ### Windows
 Get dependencies
@@ -65,12 +72,6 @@ Install
 # Run
 ./src/btcpd
 ```
-Config
-```{r, engine='bash'}
-mkdir -p ~/.btcprivate
-echo "addnode=btcprivate.org" >~/.btcprivate/btcprivate.conf
-echo "rpcuser=username" >>~/.btcprivate/btcprivate.conf
-echo "rpcpassword=`head -c 32 /dev/urandom | base64`" >>~/.btcprivate/btcprivate.conf
 
 
 About
