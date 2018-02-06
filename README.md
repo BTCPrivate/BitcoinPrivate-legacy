@@ -72,7 +72,12 @@ Install
 # Run
 ./src/btcpd
 ```
+Testing
 
+```{r, engine='bash'}
+ ./qa/zcash/full_test_suite.sh
+ ./qa/pull-tester/rpc-tests.sh
+```
 
 About
 --------------
