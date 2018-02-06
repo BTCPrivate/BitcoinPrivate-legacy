@@ -124,6 +124,41 @@ BOOST_AUTO_TEST_CASE(sign)
         }
 }
 
+BOOST_AUTO_TEST_CASE(segwitlock)
+{
+    ScriptError err;
+
+    // any scriptSig will do here
+    CScript scriptSig;
+    scriptSig << ToByteVector(uint256());
+
+    uint160 hash20;
+    CScript p2wpkh;
+    p2wpkh << OP_0 << ToByteVector(hash20);
+    BOOST_CHECK(!Verify(scriptSig, p2wpkh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
+
+    CScript p2shp2wpkh = GetScriptForDestination(CScriptID(p2wpkh));
+    CScript p2shp2wpkhsig = scriptSig;
+    p2shp2wpkhsig << Serialize(p2wpkh);
+
+    BOOST_CHECK(!Verify(p2shp2wpkhsig, p2shp2wpkh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
+
+    uint256 hash32;
+    CScript p2wsh;
+    p2wsh << OP_0 << ToByteVector(hash32);
+    BOOST_CHECK(!Verify(scriptSig, p2wsh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
+
+    CScript p2shp2wsh = GetScriptForDestination(CScriptID(p2wsh));
+    CScript p2shp2wshsig = scriptSig;
+    p2shp2wshsig << Serialize(p2wsh);
+
+    BOOST_CHECK(!Verify(p2shp2wshsig, p2shp2wsh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
+}
+
 BOOST_AUTO_TEST_CASE(norecurse)
 {
     ScriptError err;
@@ -215,6 +250,15 @@ BOOST_AUTO_TEST_CASE(is)
     CScript p2sh;
     p2sh << OP_HASH160 << ToByteVector(dummy) << OP_EQUAL;
     BOOST_CHECK(p2sh.IsPayToScriptHash());
+
+    CScript p2wpkh;
+    p2wpkh << OP_0 << ToByteVector(dummy);
+    BOOST_CHECK(p2wpkh.IsPayToWitnessPubKeyHash());
+
+    uint256 dummy256;
+    CScript p2wsh;
+    p2wsh << OP_0 << ToByteVector(dummy256);
+    BOOST_CHECK(p2wsh.IsPayToWitnessScriptHash());
 
     // Not considered pay-to-script-hash if using one of the OP_PUSHDATA opcodes:
     static const unsigned char direct[] =    { OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL };

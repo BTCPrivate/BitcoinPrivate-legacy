@@ -94,7 +94,7 @@ static void CheckBlockIndex();
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcash Signed Message:\n";
+const string strMessageMagic = "BitcoinPrivate Signed Message:\n";
 
 // Internal stuff
 namespace {
