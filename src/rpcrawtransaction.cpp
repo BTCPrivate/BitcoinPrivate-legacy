@@ -810,22 +810,25 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
             boost::assign::map_list_of
             (string("ALL"),                                int(SIGHASH_ALL))
             (string("ALL|SIGHASH_FORKID"),                 int(SIGHASH_ALL|SIGHASH_FORKID))
-            (string("ALL|SIGHASH_FORKID|ANYONECANPAY"),    int(SIGHASH_ALL|SIGHASH_FORKID))
+            (string("ALL|ANYONECANPAY|SIGHASH_FORKID"),    int(SIGHASH_ALL|SIGHASH_FORKID))
             (string("ALL|ANYONECANPAY"),                   int(SIGHASH_ALL|SIGHASH_ANYONECANPAY))
             (string("NONE"),                               int(SIGHASH_NONE))
             (string("NONE|SIGHASH_FORKID"),                int(SIGHASH_NONE|SIGHASH_FORKID))
-            (string("NONE|SIGHASH_FORKID|ANYONECANPAY"),   int(SIGHASH_NONE|SIGHASH_FORKID|SIGHASH_ANYONECANPAY))
+            (string("NONE|ANYONECANPAY|SIGHASH_FORKID"),   int(SIGHASH_NONE|SIGHASH_FORKID|SIGHASH_ANYONECANPAY))
             (string("NONE|ANYONECANPAY"),                  int(SIGHASH_NONE|SIGHASH_ANYONECANPAY))
             (string("SINGLE"),                             int(SIGHASH_SINGLE))
             (string("SINGLE|ANYONECANPAY"),                int(SIGHASH_SINGLE|SIGHASH_ANYONECANPAY))
             (string("SINGLE|SIGHASH_FORKID"),              int(SIGHASH_SINGLE|SIGHASH_FORKID))
-            (string("SINGLE|SIGHASH_FORKID|ANYONECANPAY"), int(SIGHASH_SINGLE|SIGHASH_FORKID|SIGHASH_ANYONECANPAY))
+            (string("SINGLE|ANYONECANPAY|SIGHASH_FORKID"), int(SIGHASH_SINGLE|SIGHASH_FORKID|SIGHASH_ANYONECANPAY))
             ;
         string strHashType = params[3].get_str();
         if (mapSigHashValues.count(strHashType))
             nHashType = mapSigHashValues[strHashType];
         else
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid sighash param");
+
+        if (!(nHashType & SIGHASH_FORKID))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Signature must use SIGHASH_FORKID");
     }
 
     bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
