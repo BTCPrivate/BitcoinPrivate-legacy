@@ -492,6 +492,11 @@ std::string HelpMessage(HelpMessageMode mode)
     if (GetBoolArg("-help-debug", false))
         strUsage += HelpMessageOpt("-blockversion=<n>", strprintf("Override block version to test forking scenarios (default: %d)", (int)CBlock::CURRENT_VERSION));
 
+#ifdef FORK_CB_INPUT
+    strUsage += HelpMessageGroup(_("Fork :"));
+    strUsage += HelpMessageOpt("-utxo-path=<path>", _("Specify location of utxo files"));
+#endif
+
 #ifdef ENABLE_MINING
     strUsage += HelpMessageGroup(_("Mining options:"));
     strUsage += HelpMessageOpt("-gen", strprintf(_("Generate coins (default: %u)"), 0));
@@ -890,6 +895,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
 #endif
     }
+
+#ifdef FORK_CB_INPUT
+    forkUtxoPath = GetArg("-utxo-path", "");
+    forkStartHeight = GetArg("-fork-startheight", FORK_BLOCK_HEIGHT_START);
+    forkHeightRange = GetArg("-fork-heightrange", FORK_BLOCK_HEIGHT_RANGE);
+    forkCBPerBlock = GetArg("-fork-cbperblock", FORK_COINBASE_PER_BLOCK);
+#endif
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 
