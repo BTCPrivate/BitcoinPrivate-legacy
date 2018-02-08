@@ -548,7 +548,7 @@ BOOST_AUTO_TEST_CASE(script_build)
 
     BOOST_FOREACH(TestBuilder& test, good) {
         test.Test(true);
-        std::string str = test.GetJSON().write(3,0);
+        std::string str = test.GetJSON().write();
 #ifndef UPDATE_JSON_TESTS
         if (tests_good.count(str) == 0) {
             BOOST_CHECK_MESSAGE(false, "Missing auto script_valid test: " + test.GetComment());
@@ -558,7 +558,7 @@ BOOST_AUTO_TEST_CASE(script_build)
     }
     BOOST_FOREACH(TestBuilder& test, bad) {
         test.Test(false);
-        std::string str = test.GetJSON().write(3,0);
+        std::string str = test.GetJSON().write();
 #ifndef UPDATE_JSON_TESTS
         if (tests_bad.count(str) == 0) {
             BOOST_CHECK_MESSAGE(false, "Missing auto script_invalid test: " + test.GetComment());
