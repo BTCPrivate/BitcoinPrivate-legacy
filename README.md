@@ -1,6 +1,6 @@
 Bitcoin Private
 ----------------
----
+
 **Bitcoin Private v1.0.10-1**
 
 P2P Port: 7933  
@@ -16,7 +16,7 @@ Install
 -----------------
 ### Linux
 
-Get dependencies
+Get dependencies:
 ```{r, engine='bash'}
 sudo apt-get install \
       build-essential pkg-config libc6-dev m4 g++-multilib \
@@ -24,7 +24,7 @@ sudo apt-get install \
       zlib1g-dev wget bsdmainutils automake
 ```
 
-Install
+Install:
 ```{r, engine='bash'}
 # Build
 ./btcputil/build.sh -j$(nproc)
@@ -35,7 +35,7 @@ Install
 ```
 
 ### Windows
-Get dependencies
+Get dependencies:
 ```{r, engine='bash'}
 sudo apt-get install \
       build-essential pkg-config libc6-dev m4 g++-multilib \
@@ -43,7 +43,7 @@ sudo apt-get install \
       zlib1g-dev wget bsdmainutils automake mingw-w64
 ```
 
-Install (Cross-Compiled, building on Windows is not supported yet)
+Install (Cross-Compiled, building on Windows is not supported yet):
 ```{r, engine='bash'}
 # Build
 ./btcputil/build-win.sh -j$(nproc)
@@ -51,7 +51,7 @@ Install (Cross-Compiled, building on Windows is not supported yet)
 The exe will save to `src` which you can then move to a windows machine
 
 ### Mac
-Get dependencies
+Get dependencies:
 ```{r, engine='bash'}
 #install xcode
 xcode-select --install
@@ -62,7 +62,7 @@ brew install cmake autoconf libtool automake coreutils pkgconfig gmp wget
 brew install gcc5 --without-multilib
 ```
 
-Install
+Install:
 ```{r, engine='bash'}
 # Build
 ./btcputil/build-mac.sh -j$(sysctl -n hw.physicalcpu)
@@ -76,17 +76,17 @@ About
 --------------
 
 [Bitcoin Private](http://zclassic.org/), like [Zclassic](https://zclassic.org/) and [Zcash](https://z.cash/), is an implementation of the "Zerocash" protocol.
-Based on Bitcoin's code, it intends to offer a far higher standard of privacy
+Based on Zclassic's code, it intends to offer a far higher standard of privacy
 through a sophisticated zero-knowledge proving scheme that preserves
 confidentiality of transaction metadata. Technical details are available
 in the Zcash [Protocol Specification](https://github.com/zcash/zips/raw/master/protocol/protocol.pdf).
 
 This software is the Bitcoin Private client. It downloads and stores the entire history
-of Bitcoin Private transactions; depending on the speed of your computer and network
+of Bitcoin Private transactions. Depending on the speed of your computer and network
 connection, the synchronization process could take a day or more once the
 blockchain has reached a significant size.
 
-It includes both `btcpd` (the daemon) and `btcp-cli` (the command line tools)
+It includes both `btcpd` (the daemon) and `btcp-cli` (the command line tools).
 
 Security Warnings
 -----------------
