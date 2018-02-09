@@ -174,7 +174,12 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals);
  * @param[out]  dbp     If pblock is stored to disk (or already there), this will be set to its location.
  * @return True if state.IsValid()
  */
-bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool fForceProcessing, CDiskBlockPos *dbp);
+bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool fForceProcessing, CDiskBlockPos *dbp
+#ifdef FORK_CB_INPUT
+                , bool fCalledFromMiner = false
+#endif
+                    );
+
 /** Check whether enough disk space is available for an incoming block */
 bool CheckDiskSpace(uint64_t nAdditionalBytes = 0);
 /** Open a block file (blk?????.dat) */
@@ -396,7 +401,11 @@ public:
 
 /** Functions for disk access for blocks */
 bool WriteBlockToDisk(CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart);
-bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos);
+bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos
+#ifdef FORK_CB_INPUT
+        , int nHeight = -1
+#endif
+);
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex);
 
 
@@ -413,6 +422,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
 /** Context-independent validity checks */
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW = true);
+
 bool CheckBlock(const CBlock& block, CValidationState& state,
                 libzcash::ProofVerifier& verifier,
                 bool fCheckPOW = true, bool fCheckMerkleRoot = true);
@@ -431,7 +441,11 @@ bool TestBlockValidity(CValidationState &state, const CBlock& block, CBlockIndex
  * - The only caller of AcceptBlock verifies JoinSplit proofs elsewhere.
  * If dbp is non-NULL, the file is known to already reside on disk
  */
-bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex **pindex, bool fRequested, CDiskBlockPos* dbp);
+bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex **pindex, bool fRequested, CDiskBlockPos* dbp
+#ifdef FORK_CB_INPUT
+        , bool fCalledFromMiner = false
+#endif
+    );
 bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex **ppindex= NULL);
 
 
@@ -526,5 +540,73 @@ int GetSpendHeight(const CCoinsViewCache& inputs);
 namespace Consensus {
 bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, const Consensus::Params& consensusParams);
 }
+
+#ifdef FORK_CB_INPUT
+#define FORK_BLOCK_HEIGHT_START 1000000 //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
+#define FORK_BLOCK_HEIGHT_RANGE 65000
+#define FORK_COINBASE_PER_BLOCK 10000
+
+extern std::string forkUtxoPath;
+extern int64_t forkStartHeight;
+extern int64_t forkHeightRange;
+extern int64_t forkCBPerBlock;
+
+std::string GetUTXOFileName(int nHeight);
+
+//ex: forkStartHeight = 300 000; forkHeightRange = 65K
+//A. for miner:
+//   1.   Current height = 299 999; the next block to create 300 000
+//                  nHeight is 300 000 - return false
+//   2.   Current height = 300 000; the next block to create 300 001
+//                  nHeight is 300 001 - return true - file to use utxo-00001.bin
+//      ...
+//
+//   n-1. Current height = 364 999; the next block to create 365 000
+//                  nHeight is 365 000 - return true - file to use utxo-65000.bin
+//   n.   Current height = 365 000; the next block to create 365 001
+//                  nHeight is 365 001 - return false
+//
+//  fork blocks 300001 - 365000
+//
+//B. for acceptblock:
+//   1.   Current height = 299 999
+//                  nHeight is 299 999 - return false - no verification
+//   2.   Current height = 300 000
+//                  nHeight is 300 000 - return false - no verification
+//   3.   Current height = 300 001
+//                  nHeight is 300 001 - return true - verify with file utxo-00001.bin
+//      ...
+//
+//   n.   Current height = 365 000
+//                  nHeight is 365 000 - return true - verify with file utxo-65000.bin
+//   n+1. Current height = 365 001
+//                  nHeight is 365 001 - return false - no verification
+//
+inline bool isForkBlock(int nHeight)
+{
+    return (nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
+}
+inline bool isTipInForkRange()
+{
+    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight): false;
+}
+inline bool isNextTipInForkRange()
+{
+    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight + 1): false;
+}
+inline uint64_t bytes2uint64(char *array)
+{
+    uint64_t x = 
+    static_cast<uint64_t>(array[0])       & 0x00000000000000ff |
+    static_cast<uint64_t>(array[1]) << 8  & 0x000000000000ff00 |
+    static_cast<uint64_t>(array[2]) << 16 & 0x0000000000ff0000 |
+    static_cast<uint64_t>(array[3]) << 24 & 0x00000000ff000000 |
+    static_cast<uint64_t>(array[4]) << 32 & 0x000000ff00000000 |
+    static_cast<uint64_t>(array[5]) << 40 & 0x0000ff0000000000 |
+    static_cast<uint64_t>(array[6]) << 48 & 0x00ff000000000000 |
+    static_cast<uint64_t>(array[7]) << 56 & 0xff00000000000000;
+    return x;
+}
+#endif
 
 #endif // BITCOIN_MAIN_H
