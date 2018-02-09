@@ -27,6 +27,13 @@ Install
 # Run
 ./src/btcpd
 ```
+Config
+```{r, engine='bash'}
+mkdir -p ~/.btcprivate
+echo "addnode=btcprivate.org" >~/.btcprivate/btcprivate.conf
+echo "rpcuser=username" >>~/.btcprivate/btcprivate.conf
+echo "rpcpassword=`head -c 32 /dev/urandom | base64`" >>~/.btcprivate/btcprivate.conf
+```
 
 ### Windows
 Get dependencies
@@ -64,6 +71,12 @@ Install
 ./btcputil/fetch-params.sh
 # Run
 ./src/btcpd
+```
+Testing
+
+```{r, engine='bash'}
+ ./qa/zcash/full-test-suite.sh
+ ./qa/pull-tester/rpc-tests.sh
 ```
 
 About
@@ -110,7 +123,7 @@ https://github.com/BTCPrivate/BitcoinPrivate/wiki/1.0-User-Guide
 ### Want to participate in development?
 
 * Code review is welcome!
-* If you want to get to know us join our slack: http://zclassic.herokuapp.com/
+
 
 
 Participation in the Zcash project is subject to a
