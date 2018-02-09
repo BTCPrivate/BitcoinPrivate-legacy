@@ -1,10 +1,16 @@
-Bitcoin Private v1.0.10-1
-
-NOTICE, the default ports have changed! The p2p port is now 7933 and rpcport is 7932
-
-What is Bitcoin Private?
+Bitcoin Private
 ----------------
-Bitcoin Private is financial freedom.
+---
+**Bitcoin Private v1.0.10-1**
+
+P2P Port: 7933  
+RPC Port: 7932
+
+Bitcoin Private is a fork of Zclassic, merging in the UTXO set of Bitcoin. BTCP is financial freedom.
+
+### Info
+
+The snapshot will take place on February 28th. The fork (creation of BTCP) will occur shortly after, on March 2nd.
 
 Install
 -----------------
@@ -22,7 +28,7 @@ Install
 ```{r, engine='bash'}
 # Build
 ./btcputil/build.sh -j$(nproc)
-# fetch key
+# Fetch Zcash ceremony keys
 ./btcputil/fetch-params.sh
 # Run
 ./src/btcpd
@@ -69,7 +75,7 @@ Install
 About
 --------------
 
-[Bitcoin Private](http://zclassic.org/), like [Zcash](https://z.cash/), is an implementation of the "Zerocash" protocol.
+[Bitcoin Private](http://zclassic.org/), like [Zclassic](https://zclassic.org/) and [Zcash](https://z.cash/), is an implementation of the "Zerocash" protocol.
 Based on Bitcoin's code, it intends to offer a far higher standard of privacy
 through a sophisticated zero-knowledge proving scheme that preserves
 confidentiality of transaction metadata. Technical details are available
@@ -80,13 +86,15 @@ of Bitcoin Private transactions; depending on the speed of your computer and net
 connection, the synchronization process could take a day or more once the
 blockchain has reached a significant size.
 
+It includes both `btcpd` (the daemon) and `btcp-cli` (the command line tools)
+
 Security Warnings
 -----------------
 
 See important security warnings in
 [doc/security-warnings.md](doc/security-warnings.md).
 
-**Bitcoin Private and Zcash are unfinished and highly experimental.** Use at your own risk.
+**Bitcoin Private is unfinished and highly experimental.** Use at your own risk.
 
 Deprecation Policy
 ------------------
@@ -99,27 +107,26 @@ height and can be explicitly disabled.
 Where do I begin?
 -----------------
 We have a guide for joining the main Bitcoin Private network:
-https://github.com/BTCPrivate/BitcoinPrivate/wiki/1.0-User-Guide
+https://github.com/zcash/zcash/wiki/1.0-User-Guide
 
 ### Need Help?
 
-* See the documentation at the [Bitcoin Private Wiki](https://github.com/BTCPrivate/BitcoinPrivate/wiki)
+* See documentation at the [Zcash Wiki](https://github.com/zcash/zcash/wiki) and the [Zclassic Wiki](https://github.com/z-classic/zclassic/wiki)
   for help and more information.
-* Ask for help on the [Bitcoin Private](http://zcltalk.tech/index.php) forum.
 
 ### Want to participate in development?
 
 * Code review is welcome!
-* If you want to get to know us join our slack: http://zclassic.herokuapp.com/
+* If you want to get to know us join our Discord: https://discord.gg/9xezcaK
 
 
-Participation in the Zcash project is subject to a
+Participation in the Bitcoin Private project is subject to a
 [Code of Conduct](code_of_conduct.md).
 
 Building
 --------
 
-Build Zcash along with most dependencies from source by running
+Build BTCP along with most dependencies from source by running
 `./btcputil/build.sh`. Currently only Linux is officially supported.
 
 License
