@@ -373,9 +373,9 @@ struct CMutableTransaction
     std::vector<CTxOut> vout;
     int32_t nVersion;
     uint32_t nLockTime;
-    std::vector<JSDescription> vjoinsplit;
-    uint256 joinSplitPubKey;
-    CTransaction::joinsplit_sig_t joinSplitSig = {{0}};
+ //   std::vector<JSDescription> vjoinsplit;
+   // uint256 joinSplitPubKey;
+    //CTransaction::joinsplit_sig_t joinSplitSig = {{0}};
 
     CMutableTransaction();
     CMutableTransaction(const CTransaction& tx);
