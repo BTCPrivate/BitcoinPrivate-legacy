@@ -12,7 +12,6 @@
 #include <assert.h>
 #include <ios>
 #include <limits>
-#include <list>
 #include <map>
 #include <memory>
 #include <set>
