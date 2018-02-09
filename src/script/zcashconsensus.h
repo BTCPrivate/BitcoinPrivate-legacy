@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#define zcashconsensus_API_VER 1
+#define zcashconsensus_API_VER 0
 
 typedef enum zcashconsensus_error_t
 {
