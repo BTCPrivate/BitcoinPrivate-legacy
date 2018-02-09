@@ -26,6 +26,10 @@ extern UniValue read_json(const std::string& jsondata);
 // Old script.cpp SignatureHash function
 uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType)
 {
+   int nForkHashType = nHashType;
+   if (nHashType & SIGHASH_FORKID)
+      nForkHashType |= FORKID_IN_USE << 8;
+
     static const uint256 one(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
     if (nIn >= txTo.vin.size())
     {
@@ -81,7 +85,7 @@ uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, un
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
-    ss << txTmp << nHashType;
+    ss << txTmp << nForkHashType;
     return ss.GetHash();
 }
 
@@ -145,7 +149,7 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
         // Empty output script.
         CScript scriptCode;
         CTransaction signTx(tx);
-        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL);
+        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_FORKID|SIGHASH_ALL);
 
         assert(crypto_sign_detached(&tx.joinSplitSig[0], NULL,
                                     dataToBeSigned.begin(), 32,
@@ -158,7 +162,7 @@ BOOST_FIXTURE_TEST_SUITE(sighash_tests, BasicTestingSetup)
 //
 // NB Any change in the data created below will require that you define this,
 //    and
-//       $ ./test_bitcoin -t sighash_tests > data/sighash.json
+//       $ ./test_bitcoin -t sighash_tests/sighash_test > data/sighash.json
 //       $ make -C .. bitcoin_test
 //
 //    the first step rebuilds the json, the second step result in
@@ -229,6 +233,7 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
         }
         if (test.size() == 1) continue; // comment
 
+
         std::string raw_tx, raw_script, sigHashHex;
         int nIn, nHashType;
         uint256 sh;
@@ -243,6 +248,8 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
           nHashType = test[3].get_int();
           sigHashHex = test[4].get_str();
 
+          if (nHashType & SIGHASH_FORKID)
+            continue;
           uint256 sh;
           CDataStream stream(ParseHex(raw_tx), SER_NETWORK, PROTOCOL_VERSION);
           stream >> tx;

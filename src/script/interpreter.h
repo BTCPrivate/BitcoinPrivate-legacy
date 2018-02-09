@@ -36,10 +36,18 @@ enum
 enum
 {
     FORKID_BCC = 0,
-    FORKID_BTCP = 42,
+    FORKID_BTCP = 78,         //https://en.wikipedia.org/wiki/Platinum
 };
 
 static const int FORKID_IN_USE = FORKID_BTCP;
+/** for use later with segwit **/
+enum SigVersion
+{
+    SIGVERSION_BASE = 0,
+    SIGVERSION_WITNESS_V0 = 1,
+};
+
+static const int SIGVERSION_IN_USE=SIGVERSION_BASE;
 
 /** Script verification flags */
 enum
@@ -105,7 +113,7 @@ enum
 //
 // TODO: add forkId
 //
-uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
+uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const int forkid=FORKID_IN_USE);
 
 class BaseSignatureChecker
 {

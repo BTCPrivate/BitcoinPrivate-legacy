@@ -185,7 +185,7 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
     }
-    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
+    unsigned char nHashType = GetHashType(vchSig) & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
     if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
         return false;
 
@@ -1088,12 +1088,36 @@ public:
     }
 };
 
+uint256 GetPrevoutHash(const CTransaction& txTo) {
+    CHashWriter ss(SER_GETHASH, 0);
+    for (const auto& txin : txTo.vin) {
+        ss << txin.prevout;
+    }
+    return ss.GetHash();
+}
+
+uint256 GetSequenceHash(const CTransaction& txTo) {
+    CHashWriter ss(SER_GETHASH, 0);
+    for (const auto& txin : txTo.vin) {
+        ss << txin.nSequence;
+    }
+    return ss.GetHash();
+}
+
+uint256 GetOutputsHash(const CTransaction& txTo) {
+    CHashWriter ss(SER_GETHASH, 0);
+    for (const auto& txout : txTo.vout) {
+        ss << txout;
+    }
+    return ss.GetHash();
+}
+
 } // anon namespace
 //
 // https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1204
 //   forkid
 //
-uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType)
+uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const int forkid)
 {
     if (nIn >= txTo.vin.size() && nIn != NOT_AN_INPUT) {
         throw logic_error("input index is out of range");
@@ -1105,20 +1129,70 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
             throw logic_error(" no matching output for SIGHASH_SINGLE");
         }
     }
+    int nForkHashType = nHashType;
+    if (UsesForkId(nHashType))
+        nForkHashType |= forkid << 8;
 
+    //
+    // NB will enable SIGVERSION_IN_USE later for use with segwit
+    //
+    // force new tx with FORKID to use bip143 transaction digest algorithm
+    // see https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    if (SIGVERSION_IN_USE != SIGVERSION_BASE && UsesForkId(nHashType)) {
+        uint256 hashPrevouts;
+        uint256 hashSequence;
+        uint256 hashOutputs;
+        //
+        // NB amount will need to be passed in, here defaults, for now
+        //
+        const CAmount amount = 0;
+
+        if (!(nHashType & SIGHASH_ANYONECANPAY)) {
+            hashPrevouts = GetPrevoutHash(txTo);
+        }
+
+        if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+            hashSequence = GetSequenceHash(txTo);
+        }
+
+
+        if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+            hashOutputs = GetOutputsHash(txTo);
+        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
+            CHashWriter ss(SER_GETHASH, 0);
+            ss << txTo.vout[nIn];
+            hashOutputs = ss.GetHash();
+        }
+
+        CHashWriter ss(SER_GETHASH, 0);
+        // Version
+        ss << txTo.nVersion;
+        // Input prevouts/nSequence (none/all, depending on flags)
+        ss << hashPrevouts;
+        ss << hashSequence;
+        // The input being signed (replacing the scriptSig with scriptCode + amount)
+        // The prevout may already be contained in hashPrevout, and the nSequence
+        // may already be contain in hashSequence.
+        ss << txTo.vin[nIn].prevout;
+        ss << scriptCode;
+        ss << amount;
+        ss << txTo.vin[nIn].nSequence;
+        ss << amount;
+        // Outputs (none/one/all, depending on flags)
+        ss << hashOutputs;
+        // Locktime
+        ss << txTo.nLockTime;
+        // Sighash type
+        ss << nForkHashType;
+
+        return ss.GetHash();
+    }
     // Wrapper to serialize only the necessary parts of the transaction being signed
     CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, nHashType);
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
-    ss << txTmp << (nHashType & ~SIGHASH_FORKID);
-    // This ensures Two Way Replay Protection
-    //
-    // see instead: https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1276
-    //
-    // if (nHashType & SIGHASH_FORKID) {
-    //     ss << std::string("btcp");
-    // }
+    ss << txTmp << (nForkHashType & ~SIGHASH_FORKID);
     return ss.GetHash();
 }
 
