@@ -6,14 +6,17 @@
 #ifndef BITCOIN_VALIDATIONINTERFACE_H
 #define BITCOIN_VALIDATIONINTERFACE_H
 
-#include <boost/signals2/signal.hpp>
+#include <primitives/transaction.h> // CTransaction(Ref)
 
-#include "zcash/IncrementalMerkleTree.hpp"
+#include <functional>
+#include <memory>
 
 class CBlock;
 class CBlockIndex;
 struct CBlockLocator;
-class CTransaction;
+class CBlockIndex;
+class CConnman;
+class CReserveScript;
 class CValidationInterface;
 class CValidationState;
 class uint256;

@@ -1,9 +1,43 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "validationinterface.h"
+#include <validationinterface.h>
+
+#include <init.h>
+#include <primitives/block.h>
+#include <scheduler.h>
+#include <sync.h>
+#include <txmempool.h>
+#include <util.h>
+#include <validation.h>
+
+#include <list>
+#include <atomic>
+#include <future>
+
+#include <boost/signals2/signal.hpp>
+
+struct MainSignalsInstance {
+    boost::signals2::signal<void (const CBlockIndex *, const CBlockIndex *, bool fInitialDownload)> UpdatedBlockTip;
+    boost::signals2::signal<void (const CTransactionRef &)> TransactionAddedToMempool;
+    boost::signals2::signal<void (const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex, const std::vector<CTransactionRef>&)> BlockConnected;
+    boost::signals2::signal<void (const std::shared_ptr<const CBlock> &)> BlockDisconnected;
+    boost::signals2::signal<void (const CTransactionRef &)> TransactionRemovedFromMempool;
+    boost::signals2::signal<void (const CBlockLocator &)> SetBestChain;
+    boost::signals2::signal<void (const uint256 &)> Inventory;
+    boost::signals2::signal<void (int64_t nBestBlockTime, CConnman* connman)> Broadcast;
+    boost::signals2::signal<void (const CBlock&, const CValidationState&)> BlockChecked;
+    boost::signals2::signal<void (const CBlockIndex *, const std::shared_ptr<const CBlock>&)> NewPoWValidBlock;
+
+    // We are not allowed to assume the scheduler only runs in one thread,
+    // but must ensure all callbacks happen in-order, so we end up creating
+    // our own queue here :(
+    SingleThreadedSchedulerClient m_schedulerClient;
+
+    explicit MainSignalsInstance(CScheduler *pscheduler) : m_schedulerClient(pscheduler) {}
+};
 
 static CMainSignals g_signals;
 
