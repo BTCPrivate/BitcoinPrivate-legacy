@@ -75,7 +75,7 @@ Install
 Testing
 
 ```{r, engine='bash'}
- ./qa/zcash/full_test_suite.sh
+ ./qa/zcash/full-test-suite.sh
  ./qa/pull-tester/rpc-tests.sh
 ```
 
@@ -123,7 +123,7 @@ https://github.com/BTCPrivate/BitcoinPrivate/wiki/1.0-User-Guide
 ### Want to participate in development?
 
 * Code review is welcome!
-* If you want to get to know us join our slack: http://zclassic.herokuapp.com/
+
 
 
 Participation in the Zcash project is subject to a
