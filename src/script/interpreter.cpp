@@ -1114,8 +1114,8 @@ uint256 GetOutputsHash(const CTransaction& txTo) {
 
 } // anon namespace
 //
-// https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1204
-//   forkid
+// NB see https://github.com/BTCGPU/BTCGPU/blob/c5f44f58d988859e4ae224e956daac017e2118d9/src/script/interpreter.cpp#L1212
+//    later to add segwit to this function
 //
 uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const int forkid)
 {
@@ -1133,60 +1133,6 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     if (UsesForkId(nHashType))
         nForkHashType |= forkid << 8;
 
-    //
-    // NB will enable SIGVERSION_IN_USE later for use with segwit
-    //
-    // force new tx with FORKID to use bip143 transaction digest algorithm
-    // see https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-    if (SIGVERSION_IN_USE != SIGVERSION_BASE && UsesForkId(nHashType)) {
-        uint256 hashPrevouts;
-        uint256 hashSequence;
-        uint256 hashOutputs;
-        //
-        // NB amount will need to be passed in, here defaults, for now
-        //
-        const CAmount amount = 0;
-
-        if (!(nHashType & SIGHASH_ANYONECANPAY)) {
-            hashPrevouts = GetPrevoutHash(txTo);
-        }
-
-        if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-            hashSequence = GetSequenceHash(txTo);
-        }
-
-
-        if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-            hashOutputs = GetOutputsHash(txTo);
-        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
-            CHashWriter ss(SER_GETHASH, 0);
-            ss << txTo.vout[nIn];
-            hashOutputs = ss.GetHash();
-        }
-
-        CHashWriter ss(SER_GETHASH, 0);
-        // Version
-        ss << txTo.nVersion;
-        // Input prevouts/nSequence (none/all, depending on flags)
-        ss << hashPrevouts;
-        ss << hashSequence;
-        // The input being signed (replacing the scriptSig with scriptCode + amount)
-        // The prevout may already be contained in hashPrevout, and the nSequence
-        // may already be contain in hashSequence.
-        ss << txTo.vin[nIn].prevout;
-        ss << scriptCode;
-        ss << amount;
-        ss << txTo.vin[nIn].nSequence;
-        ss << amount;
-        // Outputs (none/one/all, depending on flags)
-        ss << hashOutputs;
-        // Locktime
-        ss << txTo.nLockTime;
-        // Sighash type
-        ss << nForkHashType;
-
-        return ss.GetHash();
-    }
     // Wrapper to serialize only the necessary parts of the transaction being signed
     CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, nHashType);
 
