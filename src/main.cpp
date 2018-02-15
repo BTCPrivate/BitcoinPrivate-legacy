@@ -82,11 +82,11 @@ int64_t forkCBPerBlock = FORK_COINBASE_PER_BLOCK;
 
 std::string GetUTXOFileName(int nHeight)
 {
-    boost::filesystem::path utxo_path(forkUtxoPath);                    
+    boost::filesystem::path utxo_path(forkUtxoPath);
     if (utxo_path.empty() || !utxo_path.has_filename())
     {
         LogPrintf("GetUTXOFileName(): UTXO path is not specified, add utxo-path=<path-to-utxop-files> to your btcprivate.conf and restart");
-        return ""; 
+        return "";
     }
 
     std::stringstream ss;
@@ -1025,7 +1025,7 @@ bool CheckTransactionWithoutProofVerification(const CTransaction& tx, CValidatio
             CScript scriptCode;
             uint256 dataToBeSigned;
             try {
-                dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, SIGHASH_ALL|SIGHASH_FORKID);
+                dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, SIGHASH_ALL);
             } catch (std::logic_error ex) {
                 return state.DoS(100, error("CheckTransaction(): error computing signature hash"),
                                  REJECT_INVALID, "error-computing-signature-hash");
@@ -1937,7 +1937,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
 
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
-        {        
+        {
             CCoinsModifier outs = view.ModifyCoins(hash);
             outs->ClearUnspendable();
 
@@ -3337,7 +3337,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
                     }
                     unsigned char* pks = (unsigned char*)pubKeyScript.get();
                     CScript script = CScript(pks, pks+pbsize);
-            
+
                     txFromFile.push_back(make_pair(amount, script));
 
                     if (!if_utxo.read(&term, 1)) {
@@ -3359,7 +3359,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
                                     REJECT_INVALID, "bad-fork-block");
                     pindex->nStatus |= BLOCK_FAILED_VALID;
                     setDirtyBlockIndex.insert(pindex);
-                    return false;                    
+                    return false;
                 }
 
                 int txid = 0;
@@ -3477,7 +3477,7 @@ bool TestBlockValidity(CValidationState &state, const CBlock& block, CBlockIndex
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
-    
+
     if (!CheckBlock(block, state, verifier, fCheckPOW, fCheckMerkleRoot))
         return false;
     if (!ContextualCheckBlock(block, state, pindexPrev))
