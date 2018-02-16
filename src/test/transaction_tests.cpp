@@ -404,12 +404,12 @@ BOOST_AUTO_TEST_CASE(test_simple_joinsplit_invalidity)
         crypto_sign_keypair(newTx.joinSplitPubKey.begin(), joinSplitPrivKey);
 
         // No joinsplits, vin and vout, means it should be invalid.
-        BOOST_CHECK(!CheckTransactionWithoutProofVerification(newTx, state));
+        BOOST_CHECK(!CheckTransactionWithoutProofVerification(newTx, state, FORK_BLOCK_HEIGHT_START));
         BOOST_CHECK(state.GetRejectReason() == "bad-txns-vin-empty");
 
         newTx.vin.push_back(CTxIn(uint256S("0000000000000000000000000000000000000000000000000000000000000001"), 0));
 
-        BOOST_CHECK(!CheckTransactionWithoutProofVerification(newTx, state));
+        BOOST_CHECK(!CheckTransactionWithoutProofVerification(newTx, state, FORK_BLOCK_HEIGHT_START));
         BOOST_CHECK(state.GetRejectReason() == "bad-txns-vout-empty");
 
         newTx.vjoinsplit.push_back(JSDescription());
@@ -418,23 +418,21 @@ BOOST_AUTO_TEST_CASE(test_simple_joinsplit_invalidity)
         jsdesc->nullifiers[0] = GetRandHash();
         jsdesc->nullifiers[1] = GetRandHash();
 
-        BOOST_CHECK(!CheckTransactionWithoutProofVerification(newTx, state));
+        BOOST_CHECK(!CheckTransactionWithoutProofVerification(newTx, state, FORK_BLOCK_HEIGHT_START));
         BOOST_CHECK(state.GetRejectReason() == "bad-txns-invalid-joinsplit-signature");
 
         // Empty output script.
         CScript scriptCode;
         CTransaction signTx(newTx);
-        //
-        // NB SIGHASH_ALL | SIGHASH_FORKID
-        //
-        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, 0x41);
+
+        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL|SIGHASH_FORKID);
 
         assert(crypto_sign_detached(&newTx.joinSplitSig[0], NULL,
                                     dataToBeSigned.begin(), 32,
                                     joinSplitPrivKey
                                     ) == 0);
 
-        BOOST_CHECK(CheckTransactionWithoutProofVerification(newTx, state));
+        BOOST_CHECK(CheckTransactionWithoutProofVerification(newTx, state, FORK_BLOCK_HEIGHT_START));
     }
     {
         // Ensure that values within the joinsplit are well-formed.
