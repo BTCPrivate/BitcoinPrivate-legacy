@@ -414,7 +414,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CValidationState state;
             auto verifier = libzcash::ProofVerifier::Strict();
             //
-            // TODO TODO TODO Need block height here?
+            // NB Is there some way to get a block height here?
             //
             if (!(CheckTransaction(wtx, state, verifier) && (wtx.GetHash() == hash) && state.IsValid()))
                 return false;
