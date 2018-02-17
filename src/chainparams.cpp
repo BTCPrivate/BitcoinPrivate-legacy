@@ -37,7 +37,7 @@ public:
     CMainParams() {
         strNetworkID = "main";
         strCurrencyUnits = "BTCP";
-        consensus.fCoinbaseMustBeProtected = false;
+        consensus.fCoinbaseMustBeProtected = true;
         consensus.nSubsidySlowStartInterval = 2;
         consensus.nSubsidyHalvingInterval = 840000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
@@ -206,7 +206,7 @@ public:
     CTestNetParams() {
         strNetworkID = "test";
         strCurrencyUnits = "BTCPT";
-        consensus.fCoinbaseMustBeProtected = false;
+        consensus.fCoinbaseMustBeProtected = true;
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 400;
