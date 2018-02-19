@@ -37,10 +37,7 @@ extern unsigned nMaxDatacarrierBytes;
  * details.
  */
 
- //
- // TODO https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/standard.h#L43
- //
-static const unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS = SCRIPT_VERIFY_P2SH | SCRIPT_ENABLE_SIGHASH_FORKID;
+static const unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS = SCRIPT_VERIFY_P2SH;
 
 /**
  * Standard script verification flags that standard transactions will comply

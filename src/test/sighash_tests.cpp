@@ -20,7 +20,6 @@
 
 #include <univalue.h>
 
-
 extern UniValue read_json(const std::string& jsondata);
 
 // Old script.cpp SignatureHash function
@@ -70,7 +69,7 @@ uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, un
     }
 
     // Blank out other inputs completely, not recommended for open transactions
-    if ((nHashType & 0x1f) == SIGHASH_ANYONECANPAY)
+    if (nHashType & SIGHASH_ANYONECANPAY)
     {
         txTmp.vin[0] = txTmp.vin[nIn];
         txTmp.vin.resize(1);
@@ -99,9 +98,8 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
     tx.vout.clear();
     tx.nLockTime = (insecure_rand() % 2) ? insecure_rand() : 0;
     int ins = (insecure_rand() % 4) + 1;
-    int outs = fSingle ? ins + 1 : (insecure_rand() % 4) + 1;
+    int outs = fSingle ? ins : (insecure_rand() % 4) + 1;
     int joinsplits = (insecure_rand() % 4);
-
     for (int in = 0; in < ins; in++) {
         tx.vin.push_back(CTxIn());
         CTxIn &txin = tx.vin.back();
@@ -155,16 +153,6 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
 }
 
 BOOST_FIXTURE_TEST_SUITE(sighash_tests, BasicTestingSetup)
-//
-// NB Any change in the data created below will require that you define this,
-//    and
-//       $ ./test_bitcoin -t sighash_tests > data/sighash.json
-//       $ make -C .. bitcoin_test
-//
-//    the first step rebuilds the json, the second step result in
-//    data/sighash.json.h being recreated and used in a recompile
-//
-// #define PRINT_SIGHASH_JSON
 
 BOOST_AUTO_TEST_CASE(sighash_test)
 {
@@ -180,18 +168,16 @@ BOOST_AUTO_TEST_CASE(sighash_test)
     nRandomTests = 500;
     #endif
     for (int i=0; i<nRandomTests; i++) {
-        int nHashType = (insecure_rand() % 3) + 1;
+        int nHashType = insecure_rand();
         CMutableTransaction txTo;
-        RandomTransaction(txTo, (nHashType == SIGHASH_SINGLE));
+        RandomTransaction(txTo, (nHashType & 0x1f) == SIGHASH_SINGLE);
         CScript scriptCode;
         RandomScript(scriptCode);
         int nIn = insecure_rand() % txTo.vin.size();
 
         uint256 sh, sho;
-
         sho = SignatureHashOld(scriptCode, txTo, nIn, nHashType);
         sh = SignatureHash(scriptCode, txTo, nIn, nHashType);
-
         #if defined(PRINT_SIGHASH_JSON)
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << txTo;

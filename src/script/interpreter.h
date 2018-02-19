@@ -32,11 +32,14 @@ enum
     SIGHASH_ANYONECANPAY = 0x80,
 };
 
-/** Fork IDs **/
+static const int SIGHASH_FLAGS_MASK = SIGHASH_FORKID | SIGHASH_ANYONECANPAY;
+static const int SIGHASH_BASE_MASK = ~SIGHASH_FLAGS_MASK;
+
 enum
 {
-    FORKID_BCC = 0,
+    FORKID_NONE = 0,
     FORKID_BTCP = 42,
+    FORKID_BTCGPU = 79
 };
 
 static const int FORKID_IN_USE = FORKID_BTCP;
@@ -97,20 +100,16 @@ enum
     // See BIP65 for details.
     SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 9),
 
-    // Do we accept signature using SIGHASH_FORKID
-    SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 16),
-    // Allow NON_FORKID in legacy tests and blocks under BTG hard fork height
-    SCRIPT_ALLOW_NON_FORKID = (1U << 17),
+    // Require that all signatures sign the forkid
+    SCRIPT_VERIFY_FORKID = (1U << 17)
 };
-//
-// TODO: add forkId
-//
-uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
+
+uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const int forkid=FORKID_NONE);
 
 class BaseSignatureChecker
 {
 public:
-    virtual bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode) const
+    virtual bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, const unsigned int flags) const
     {
         return false;
     }
@@ -134,7 +133,7 @@ protected:
 
 public:
     TransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn) : txTo(txToIn), nIn(nInIn) {}
-    bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode) const;
+    bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, const unsigned int flags) const;
     bool CheckLockTime(const CScriptNum& nLockTime) const;
 };
 
