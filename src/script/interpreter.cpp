@@ -1216,7 +1216,7 @@ static bool VerifyWitnessProgram(const std::vector<std::vector<unsigned char> >&
             return set_error(serror, SCRIPT_ERR_PUSH_SIZE);
     }
 
-    if (!EvalScript(stack, scriptPubKey, flags, checker, SIGVERSION_WITNESS_V0, serror)) {
+    if (!EvalScript(stack, scriptPubKey, flags, checker, serror)) {
         return false;
     }
 
@@ -1254,8 +1254,8 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
     std::vector<unsigned char> witnessprogram;
     if (flags & SCRIPT_VERIFY_WITNESS) {
         if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
-            hadWitness = true;
             // TODO: in full segwit soft-fork enable this
+            // hadWitness = true;
             // if (scriptSig.size() != 0) {
             //     // The scriptSig must be _exactly_ CScript(), otherwise we reintroduce malleability.
             //     return set_error(serror, SCRIPT_ERR_WITNESS_MALLEATED);
@@ -1303,7 +1303,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
         // P2SH witness program
         if (flags & SCRIPT_VERIFY_WITNESS) {
             if (pubKey2.IsWitnessProgram(witnessversion, witnessprogram)) {
-                hadWitness = true;
+                // hadWitness = true;
                 // if (scriptSig != CScript() << std::vector<unsigned char>(pubKey2.begin(), pubKey2.end())) {
                 //     // The scriptSig must be _exactly_ a single push of the redeemScript. Otherwise we
                 //     // reintroduce malleability.
