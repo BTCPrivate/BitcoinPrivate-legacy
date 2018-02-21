@@ -52,10 +52,13 @@ sudo apt-get install \
       zlib1g-dev wget bsdmainutils automake mingw-w64
 ```
 
-2. Set the default ming32 gcc/g++ compiler option to posix
+2. Set the default ming32 gcc/g++ compiler option to posix, fix problem with packages in Xenial
 
 ```{r, engine='bash'}
-sudo apt install mingw-w64
+sudo apt install software-properties-common
+sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu zesty universe"
+sudo apt update
+sudo apt upgrade
 sudo update-alternatives --config x86_64-w64-mingw32-gcc
 sudo update-alternatives --config x86_64-w64-mingw32-g++
 ```
