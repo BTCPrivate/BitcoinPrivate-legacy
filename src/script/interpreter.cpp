@@ -185,7 +185,7 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
     }
-    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
+    unsigned char nHashType = GetHashType(vchSig) & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
     if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
         return false;
 
@@ -1088,12 +1088,36 @@ public:
     }
 };
 
+uint256 GetPrevoutHash(const CTransaction& txTo) {
+    CHashWriter ss(SER_GETHASH, 0);
+    for (const auto& txin : txTo.vin) {
+        ss << txin.prevout;
+    }
+    return ss.GetHash();
+}
+
+uint256 GetSequenceHash(const CTransaction& txTo) {
+    CHashWriter ss(SER_GETHASH, 0);
+    for (const auto& txin : txTo.vin) {
+        ss << txin.nSequence;
+    }
+    return ss.GetHash();
+}
+
+uint256 GetOutputsHash(const CTransaction& txTo) {
+    CHashWriter ss(SER_GETHASH, 0);
+    for (const auto& txout : txTo.vout) {
+        ss << txout;
+    }
+    return ss.GetHash();
+}
+
 } // anon namespace
 //
-// https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1204
-//   forkid
+// NB see https://github.com/BTCGPU/BTCGPU/blob/c5f44f58d988859e4ae224e956daac017e2118d9/src/script/interpreter.cpp#L1212
+//    later to add segwit to this function
 //
-uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType)
+uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const int forkid)
 {
     if (nIn >= txTo.vin.size() && nIn != NOT_AN_INPUT) {
         throw logic_error("input index is out of range");
@@ -1105,20 +1129,16 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
             throw logic_error(" no matching output for SIGHASH_SINGLE");
         }
     }
+    int nForkHashType = nHashType;
+    if (UsesForkId(nHashType))
+        nForkHashType |= forkid << 8;
 
     // Wrapper to serialize only the necessary parts of the transaction being signed
     CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, nHashType);
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
-    ss << txTmp << (nHashType & ~SIGHASH_FORKID);
-    // This ensures Two Way Replay Protection
-    //
-    // see instead: https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1276
-    //
-    // if (nHashType & SIGHASH_FORKID) {
-    //     ss << std::string("btcp");
-    // }
+    ss << txTmp << (nForkHashType & ~SIGHASH_FORKID);
     return ss.GetHash();
 }
 

@@ -424,10 +424,8 @@ BOOST_AUTO_TEST_CASE(test_simple_joinsplit_invalidity)
         // Empty output script.
         CScript scriptCode;
         CTransaction signTx(newTx);
-        //
-        // NB SIGHASH_ALL | SIGHASH_FORKID
-        //
-        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, 0x41);
+
+        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL|SIGHASH_FORKID);
 
         assert(crypto_sign_detached(&newTx.joinSplitSig[0], NULL,
                                     dataToBeSigned.begin(), 32,
