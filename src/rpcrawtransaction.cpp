@@ -804,7 +804,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     const CKeyStore& keystore = tempKeystore;
 #endif
 
-    int nHashType = SIGHASH_ALL | SIGHASH_FORKID;
+    int nHashType = SIGHASH_ALL;
     if (params.size() > 3 && !params[3].isNull()) {
         static map<string, int> mapSigHashValues =
             boost::assign::map_list_of
@@ -820,9 +820,8 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
             nHashType = mapSigHashValues[strHashType];
         else
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid sighash param");
-
-        nHashType |= SIGHASH_FORKID;
     }
+    nHashType |= SIGHASH_FORKID;
 
     bool fHashSingle = ((nHashType & ~SIGHASH_FLAGS_MASK) == SIGHASH_SINGLE);
 

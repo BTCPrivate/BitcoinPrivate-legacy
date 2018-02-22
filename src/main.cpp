@@ -2107,6 +2107,17 @@ static int64_t nTimeIndex = 0;
 static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
+
+static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex) {
+    AssertLockHeld(cs_main);
+
+    unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
+    if(isForkEnabled(pindex->nHeight))
+        flags |= SCRIPT_VERIFY_FORKID;
+
+    return flags;
+};
+
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck)
 {
     const CChainParams& chainparams = Params();
@@ -2146,9 +2157,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return true;
     }
 
-    unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
-    if(isForkEnabled(pindex->nHeight))
-        flags |= SCRIPT_VERIFY_FORKID;
+    unsigned int flags = GetBlockScriptFlags(pindex);
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
     // unless those are already completely spent.
