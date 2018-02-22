@@ -1035,7 +1035,8 @@ bool CheckJoinSplitSigs(const CTransaction& tx, CValidationState &state, const u
             hashtype |= SIGHASH_FORKID;
 
         try {
-            dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, hashtype);
+            dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT,
+                                           hashtype, (flags & SCRIPT_VERIFY_FORKID) ? FORKID_IN_USE : FORKID_NONE);
         } catch (std::logic_error ex) {
             return state.DoS(100, error("CheckTransaction(): error computing signature hash"),
                              REJECT_INVALID, "error-computing-signature-hash");
