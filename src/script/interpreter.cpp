@@ -90,7 +90,7 @@ bool static IsCompressedOrUncompressedPubKey(const valtype &vchPubKey) {
  * Where R and S are not negative (their first byte has its highest bit not set), and not
  * excessively padded (do not start with a 0 byte, unless an otherwise negative number follows,
  * in which case a single 0 byte is necessary and even required).
- * 
+ *
  * See https://bitcointalk.org/index.php?topic=8392.msg127623#msg127623
  *
  * This function is consensus-critical since BIP66.
@@ -130,7 +130,7 @@ bool static IsValidSignatureEncoding(const std::vector<unsigned char> &sig) {
     // Verify that the length of the signature matches the sum of the length
     // of the elements.
     if ((size_t)(lenR + lenS + 7) != sig.size()) return false;
- 
+
     // Check whether the R element is an integer.
     if (sig[2] != 0x02) return false;
 
@@ -160,6 +160,13 @@ bool static IsValidSignatureEncoding(const std::vector<unsigned char> &sig) {
     return true;
 }
 
+uint32_t static GetHashType(const valtype &vchSig) {
+    if (vchSig.size() == 0)
+        return 0;
+    // check IsValidSignatureEncoding()'s comment for vchSig format
+    return vchSig.back();
+}
+
 bool static IsLowDERSignature(const valtype &vchSig, ScriptError* serror) {
     if (!IsValidSignatureEncoding(vchSig)) {
         return set_error(serror, SCRIPT_ERR_SIG_DER);
@@ -178,11 +185,23 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
     }
-    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY));
+    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
     if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
         return false;
 
     return true;
+}
+
+bool static UsesForkId(uint32_t nHashType) {
+    return nHashType & SIGHASH_FORKID;
+}
+bool static UsesForkId(const valtype &vchSig) {
+    uint32_t nHashType = GetHashType(vchSig);
+    return UsesForkId(nHashType);
+}
+
+bool static AllowsNonForkId(unsigned int flags) {
+    return flags & SCRIPT_ALLOW_NON_FORKID;
 }
 
 bool static CheckSignatureEncoding(const valtype &vchSig, unsigned int flags, ScriptError* serror) {
@@ -194,12 +213,19 @@ bool static CheckSignatureEncoding(const valtype &vchSig, unsigned int flags, Sc
     if (!IsValidSignatureEncoding(vchSig)) {
         return set_error(serror, SCRIPT_ERR_SIG_DER);
     } else if ((flags & SCRIPT_VERIFY_LOW_S) != 0 && !IsLowDERSignature(vchSig, serror)) {
-        // serror is set
         return false;
-    } else if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsDefinedHashtypeSignature(vchSig)) {
-        return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
     }
-    return true;
+
+    if ((flags & SCRIPT_VERIFY_STRICTENC) != 0) {
+        if(!IsDefinedHashtypeSignature(vchSig)) {
+            return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
+        }
+        bool requiresForkId = !AllowsNonForkId(flags);
+        bool usesForkId = UsesForkId(vchSig);
+        if (requiresForkId && !usesForkId)
+            return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
+   }
+   return true;
 }
 
 bool static CheckPubKeyEncoding(const valtype &vchSig, unsigned int flags, ScriptError* serror) {
@@ -837,7 +863,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                     valtype& vchPubKey = stacktop(-1);
 
                     if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
-                        //serror is set
+                        // serror is set
                         return false;
                     }
                     bool fSuccess = checker.CheckSig(vchSig, vchPubKey, script);
@@ -945,7 +971,6 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                 default:
                     return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
             }
-
             // Size limits
             if (stack.size() + altstack.size() > 1000)
                 return set_error(serror, SCRIPT_ERR_STACK_SIZE);
@@ -958,7 +983,6 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
 
     if (!vfExec.empty())
         return set_error(serror, SCRIPT_ERR_UNBALANCED_CONDITIONAL);
-
     return set_success(serror);
 }
 
@@ -976,13 +1000,15 @@ private:
     const bool fAnyoneCanPay;  //! whether the hashtype has the SIGHASH_ANYONECANPAY flag set
     const bool fHashSingle;    //! whether the hashtype is SIGHASH_SINGLE
     const bool fHashNone;      //! whether the hashtype is SIGHASH_NONE
+    const bool fSighashForkid; //! whether SIGHASH_FORKID is set
 
 public:
     CTransactionSignatureSerializer(const CTransaction &txToIn, const CScript &scriptCodeIn, unsigned int nInIn, int nHashTypeIn) :
         txTo(txToIn), scriptCode(scriptCodeIn), nIn(nInIn),
         fAnyoneCanPay(!!(nHashTypeIn & SIGHASH_ANYONECANPAY)),
         fHashSingle((nHashTypeIn & 0x1f) == SIGHASH_SINGLE),
-        fHashNone((nHashTypeIn & 0x1f) == SIGHASH_NONE) {}
+        fHashNone((nHashTypeIn & 0x1f) == SIGHASH_NONE),
+        fSighashForkid((nHashTypeIn & SIGHASH_FORKID) == SIGHASH_FORKID){}
 
     /** Serialize the passed scriptCode */
     template<typename S>
@@ -1063,19 +1089,20 @@ public:
 };
 
 } // anon namespace
-
+//
+// https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1204
+//   forkid
+//
 uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType)
 {
     if (nIn >= txTo.vin.size() && nIn != NOT_AN_INPUT) {
-        //  nIn out of range
         throw logic_error("input index is out of range");
     }
 
     // Check for invalid use of SIGHASH_SINGLE
     if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
         if (nIn >= txTo.vout.size()) {
-            //  nOut out of range
-            throw logic_error("no matching output for SIGHASH_SINGLE");
+            throw logic_error(" no matching output for SIGHASH_SINGLE");
         }
     }
 
@@ -1084,7 +1111,14 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
-    ss << txTmp << nHashType;
+    ss << txTmp << (nHashType & ~SIGHASH_FORKID);
+    // This ensures Two Way Replay Protection
+    //
+    // see instead: https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1276
+    //
+    // if (nHashType & SIGHASH_FORKID) {
+    //     ss << std::string("btcp");
+    // }
     return ss.GetHash();
 }
 
@@ -1103,7 +1137,7 @@ bool TransactionSignatureChecker::CheckSig(const vector<unsigned char>& vchSigIn
     vector<unsigned char> vchSig(vchSigIn);
     if (vchSig.empty())
         return false;
-    int nHashType = vchSig.back();
+    int nHashType = GetHashType(vchSig);
     vchSig.pop_back();
 
     uint256 sighash;
@@ -1164,15 +1198,28 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
         return set_error(serror, SCRIPT_ERR_SIG_PUSHONLY);
     }
 
+    // If SIGHASH_FORKID is enabled, we also ensure strict encoding.
+    if (flags & SCRIPT_ENABLE_SIGHASH_FORKID) {
+        flags |= SCRIPT_VERIFY_STRICTENC;
+    }
+
+    // Do not allow spends of P2WPKH-P2SH and P2WSH-P2SH UTXOs
+    // To a non-segwit aware node these outputs are trivially spendable
+    // Detect them here and evaluate to false
+    // TODO: remove this block post-segwit implementation
+    if( scriptPubKey.IsPayToWitnessPubKeyHash() || scriptPubKey.IsPayToWitnessScriptHash())
+        return set_error(serror, SCRIPT_ERR_SEGWIT_LOCKED);
+
     vector<vector<unsigned char> > stack, stackCopy;
     if (!EvalScript(stack, scriptSig, flags, checker, serror))
-        // serror is set
-        return false;
+      return false;
     if (flags & SCRIPT_VERIFY_P2SH)
         stackCopy = stack;
     if (!EvalScript(stack, scriptPubKey, flags, checker, serror))
-        // serror is set
-        return false;
+      // serror is set
+      return false;
+
+
     if (stack.empty())
         return set_error(serror, SCRIPT_ERR_EVAL_FALSE);
     if (CastToBool(stack.back()) == false)
@@ -1196,6 +1243,10 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
         const valtype& pubKeySerialized = stack.back();
         CScript pubKey2(pubKeySerialized.begin(), pubKeySerialized.end());
         popstack(stack);
+
+        // See TODO above
+        if(pubKey2.IsPayToWitnessPubKeyHash() || pubKey2.IsPayToWitnessScriptHash())
+            return set_error(serror, SCRIPT_ERR_SEGWIT_LOCKED);
 
         if (!EvalScript(stack, pubKey2, flags, checker, serror))
             // serror is set

@@ -121,7 +121,7 @@ static void CheckBlockIndex();
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcash Signed Message:\n";
+const string strMessageMagic = "BitcoinPrivate Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -1025,7 +1025,7 @@ bool CheckTransactionWithoutProofVerification(const CTransaction& tx, CValidatio
             CScript scriptCode;
             uint256 dataToBeSigned;
             try {
-                dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, SIGHASH_ALL);
+                dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, SIGHASH_ALL|SIGHASH_FORKID);
             } catch (std::logic_error ex) {
                 return state.DoS(100, error("CheckTransaction(): error computing signature hash"),
                                  REJECT_INVALID, "error-computing-signature-hash");
@@ -1039,6 +1039,7 @@ bool CheckTransactionWithoutProofVerification(const CTransaction& tx, CValidatio
                                             dataToBeSigned.begin(), 32,
                                             tx.joinSplitPubKey.begin()
                                            ) != 0) {
+
                 return state.DoS(100, error("CheckTransaction(): invalid joinsplit signature"),
                                  REJECT_INVALID, "bad-txns-invalid-joinsplit-signature");
             }

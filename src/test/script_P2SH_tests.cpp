@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(sign)
     }
     for (int i = 0; i < 8; i++)
     {
-        BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0), strprintf("SignSignature %d", i));
+        BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0, SIGHASH_ALL| SIGHASH_FORKID), strprintf("SignSignature %d", i));
     }
     // All of the above should be OK, and the txTos have valid signatures
     // Check to make sure signature verification fails if we use the wrong ScriptSig:
@@ -115,13 +115,48 @@ BOOST_AUTO_TEST_CASE(sign)
         {
             CScript sigSave = txTo[i].vin[0].scriptSig;
             txTo[i].vin[0].scriptSig = txTo[j].vin[0].scriptSig;
-            bool sigOK = CScriptCheck(CCoins(txFrom, 0), txTo[i], 0, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, false)();
+            bool sigOK = CScriptCheck(CCoins(txFrom, 0), txTo[i], 0, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC | SCRIPT_ENABLE_SIGHASH_FORKID, false)();
             if (i == j)
                 BOOST_CHECK_MESSAGE(sigOK, strprintf("VerifySignature %d %d", i, j));
             else
                 BOOST_CHECK_MESSAGE(!sigOK, strprintf("VerifySignature %d %d", i, j));
             txTo[i].vin[0].scriptSig = sigSave;
         }
+}
+
+BOOST_AUTO_TEST_CASE(segwitlock)
+{
+    ScriptError err;
+
+    // any scriptSig will do here
+    CScript scriptSig;
+    scriptSig << ToByteVector(uint256());
+
+    uint160 hash20;
+    CScript p2wpkh;
+    p2wpkh << OP_0 << ToByteVector(hash20);
+    BOOST_CHECK(!Verify(scriptSig, p2wpkh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
+
+    CScript p2shp2wpkh = GetScriptForDestination(CScriptID(p2wpkh));
+    CScript p2shp2wpkhsig = scriptSig;
+    p2shp2wpkhsig << Serialize(p2wpkh);
+
+    BOOST_CHECK(!Verify(p2shp2wpkhsig, p2shp2wpkh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
+
+    uint256 hash32;
+    CScript p2wsh;
+    p2wsh << OP_0 << ToByteVector(hash32);
+    BOOST_CHECK(!Verify(scriptSig, p2wsh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
+
+    CScript p2shp2wsh = GetScriptForDestination(CScriptID(p2wsh));
+    CScript p2shp2wshsig = scriptSig;
+    p2shp2wshsig << Serialize(p2wsh);
+
+    BOOST_CHECK(!Verify(p2shp2wshsig, p2shp2wsh, true, err));
+    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
 }
 
 BOOST_AUTO_TEST_CASE(norecurse)
@@ -203,7 +238,7 @@ BOOST_AUTO_TEST_CASE(set)
     }
     for (int i = 0; i < 4; i++)
     {
-        BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0), strprintf("SignSignature %d", i));
+        BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0, SIGHASH_ALL | SIGHASH_FORKID), strprintf("SignSignature %d", i));
         BOOST_CHECK_MESSAGE(IsStandardTx(txTo[i], reason), strprintf("txTo[%d].IsStandard", i));
     }
 }
@@ -215,6 +250,15 @@ BOOST_AUTO_TEST_CASE(is)
     CScript p2sh;
     p2sh << OP_HASH160 << ToByteVector(dummy) << OP_EQUAL;
     BOOST_CHECK(p2sh.IsPayToScriptHash());
+
+    CScript p2wpkh;
+    p2wpkh << OP_0 << ToByteVector(dummy);
+    BOOST_CHECK(p2wpkh.IsPayToWitnessPubKeyHash());
+
+    uint256 dummy256;
+    CScript p2wsh;
+    p2wsh << OP_0 << ToByteVector(dummy256);
+    BOOST_CHECK(p2wsh.IsPayToWitnessScriptHash());
 
     // Not considered pay-to-script-hash if using one of the OP_PUSHDATA opcodes:
     static const unsigned char direct[] =    { OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL };
@@ -302,7 +346,8 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     txFrom.vout[3].nValue = 4000;
 
     // vout[4] is max sigops:
-    CScript fifteenSigops; fifteenSigops << OP_1;
+    CScript fifteenSigops;
+    fifteenSigops << OP_1;
     for (unsigned i = 0; i < MAX_P2SH_SIGOPS; i++)
         fifteenSigops << ToByteVector(key[i%3].GetPubKey());
     fifteenSigops << OP_15 << OP_CHECKMULTISIG;
@@ -332,9 +377,11 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
         txTo.vin[i].prevout.n = i;
         txTo.vin[i].prevout.hash = txFrom.GetHash();
     }
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 0));
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 1));
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 2));
+
+    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 0,SIGHASH_ALL| SIGHASH_FORKID));
+    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 1,SIGHASH_ALL| SIGHASH_FORKID));
+    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 2,SIGHASH_ALL| SIGHASH_FORKID));
+
     // SignSignature doesn't know how to sign these. We're
     // not testing validating signatures, so just create
     // dummy signatures that DO include the correct P2SH scripts:
