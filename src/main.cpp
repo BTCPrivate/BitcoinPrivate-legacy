@@ -27,6 +27,7 @@
 #include "util.h"
 #include "utilmoneystr.h"
 #include "validationinterface.h"
+#include "versionbits.h"
 #include "wallet/asyncrpcoperation_sendmany.h"
 
 #include <sstream>
@@ -76,9 +77,11 @@ bool fAlerts = DEFAULT_ALERTS;
 #include <boost/range/combine.hpp>
 
 std::string forkUtxoPath;
-int64_t forkStartHeight = FORK_BLOCK_HEIGHT_START;
-int64_t forkHeightRange = FORK_BLOCK_HEIGHT_RANGE;
-int64_t forkCBPerBlock = FORK_COINBASE_PER_BLOCK;
+int64_t forkStartHeight;
+int64_t forkHeightRange;
+int64_t forkCBPerBlock;
+uint256 forkExtraHashSentinel = uint256S("f0f0f0f0fafafafaffffffffffffffffffffffffffffffffafafafaf0f0f0f0f");
+uint256 hashPid = GetRandHash();
 
 std::string GetUTXOFileName(int nHeight)
 {
@@ -1413,18 +1416,10 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
 
-#ifdef FORK_CB_INPUT
-    if (!isForkBlock(nHeight)) { //when block is in fork region - don't check Solution and PoW
-#endif
-
     // Check the header
     if (!(CheckEquihashSolution(&block, Params()) &&
           CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
-
-#ifdef FORK_CB_INPUT
-    }
-#endif
 
     return true;
 }
@@ -1712,6 +1707,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
                 // Ensure that coinbases cannot be spent to transparent outputs
                 // Disabled on regtest
                 if (fCoinbaseEnforcedProtectionEnabled &&
+                    !isForkBlock(coins->nHeight) &&
                     consensusParams.fCoinbaseMustBeProtected &&
                     !tx.vout.empty()) {
                     return state.Invalid(
@@ -2102,6 +2098,51 @@ void PartitionCheck(bool (*initialDownloadCheck)(), CCriticalSection& cs, const 
     }
 }
 
+// Protected by cs_main
+VersionBitsCache versionbitscache;
+
+int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params)
+{
+    LOCK(cs_main);
+    int32_t nVersion = VERSIONBITS_TOP_BITS;
+
+    for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
+        ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
+        if (state == THRESHOLD_LOCKED_IN || state == THRESHOLD_STARTED) {
+            nVersion |= VersionBitsMask(params, (Consensus::DeploymentPos)i);
+        }
+    }
+
+    return nVersion;
+}
+
+/**
+ * Threshold condition checker that triggers when unknown versionbits are seen on the network.
+ */
+class WarningBitsConditionChecker : public AbstractThresholdConditionChecker
+{
+private:
+    int bit;
+
+public:
+    WarningBitsConditionChecker(int bitIn) : bit(bitIn) {}
+
+    int64_t BeginTime(const Consensus::Params& params) const { return 0; }
+    int64_t EndTime(const Consensus::Params& params) const { return std::numeric_limits<int64_t>::max(); }
+    int Period(const Consensus::Params& params) const { return params.nMinerConfirmationWindow; }
+    int Threshold(const Consensus::Params& params) const { return params.nRuleChangeActivationThreshold; }
+
+    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const
+    {
+        return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
+            ((pindex->nVersion >> bit) & 1) != 0 &&
+            ((ComputeBlockVersion(pindex->pprev, params) >> bit) & 1) == 0;
+    }
+};
+
+// Protected by cs_main
+static ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
+
 static int64_t nTimeVerify = 0;
 static int64_t nTimeConnect = 0;
 static int64_t nTimeIndex = 0;
@@ -2465,24 +2506,43 @@ void static UpdateTip(CBlockIndex *pindexNew) {
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
     static bool fWarned = false;
-    if (!IsInitialBlockDownload() && !fWarned)
+    if (!IsInitialBlockDownload())
     {
         int nUpgraded = 0;
         const CBlockIndex* pindex = chainActive.Tip();
+        for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
+            WarningBitsConditionChecker checker(bit);
+            ThresholdState state = checker.GetStateFor(pindex, chainParams.GetConsensus(), warningcache[bit]);
+            if (state == THRESHOLD_ACTIVE || state == THRESHOLD_LOCKED_IN) {
+                if (state == THRESHOLD_ACTIVE) {
+                    strMiscWarning = strprintf(_("Warning: unknown new rules activated (versionbit %i)"), bit);
+                    if (!fWarned) {
+                        CAlert::Notify(strMiscWarning, true);
+                        fWarned = true;
+                    }
+                } else {
+                    LogPrintf("%s: unknown new rules are about to activate (versionbit %i)\n", __func__, bit);
+                }
+            }
+        }
+
         for (int i = 0; i < 100 && pindex != NULL; i++)
         {
-            if (pindex->nVersion > CBlock::CURRENT_VERSION)
+            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus());
+            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
                 ++nUpgraded;
             pindex = pindex->pprev;
         }
         if (nUpgraded > 0)
-            LogPrintf("%s: %d of last 100 blocks above version %d\n", __func__, nUpgraded, (int)CBlock::CURRENT_VERSION);
+            LogPrintf("%s: %d of last 100 blocks have unexpected version\n", __func__, nUpgraded);
         if (nUpgraded > 100/2)
         {
             // strMiscWarning is read by GetWarnings(), called by the JSON-RPC code to warn the user:
-            strMiscWarning = _("Warning: This version is obsolete; upgrade required!");
-            CAlert::Notify(strMiscWarning, true);
-            fWarned = true;
+            strMiscWarning = _("Warning: Unknown block versions being mined! It's possible unknown rules are in effect");
+            if (!fWarned) {
+                CAlert::Notify(strMiscWarning, true);
+                fWarned = true;
+            }
         }
     }
 }
@@ -2595,6 +2655,10 @@ bool static ConnectTip(CValidationState &state, CBlockIndex *pindexNew, CBlock *
     mempool.check(pcoinsTip);
     // Update chainActive & related variables.
     UpdateTip(pindexNew);
+    LogPrintf("NEWTIP %s %d %d %s %s\n",
+              hashPid.ToString(), pindexNew->nHeight, GetTime(),
+              pblock->vtx[0].vin[0].scriptSig.ToString(), pblock->GetHash().ToString());
+
     // Tell wallet about transactions that went from mempool
     // to conflicted:
     BOOST_FOREACH(const CTransaction &tx, txConflicted) {
@@ -3054,10 +3118,6 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
         return state.DoS(100, error("CheckBlockHeader(): block version too low"),
                          REJECT_INVALID, "version-too-low");
 
-#ifdef FORK_CB_INPUT
-    if (!isTipInForkRange()) { //when in FORK mode (tip is in forking region) - don't check Solution and PoW
-#endif
-
     // Check Equihash solution is valid
     if (fCheckPOW && !CheckEquihashSolution(&block, Params()))
         return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
@@ -3067,10 +3127,6 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
         return state.DoS(50, error("CheckBlockHeader(): proof of work failed"),
                          REJECT_INVALID, "high-hash");
-
-#ifdef FORK_CB_INPUT
-    }
-#endif
 
     // Check timestamp
     if (block.GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
@@ -3121,20 +3177,22 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
         return state.DoS(100, error("CheckBlock(): first tx is not coinbase"),
                          REJECT_INVALID, "bad-cb-missing");
 
-#ifdef FORK_CB_INPUT
-    if (isTipInForkRange()) { //when in FORK mode (tip is in forking region) blocks might have up to fork pre-defined value coinbases
+    //fork blocks might have up to fork pre-defined value coinbases and nothing else
+    if (looksLikeForkBlockHeader(block)) {
         if (block.vtx.size() > forkCBPerBlock)
-            return state.DoS(100, error("CheckBlock(): it is forking block but there are more than %d coinbase txns", forkCBPerBlock),
-                                REJECT_INVALID, "bad-cb-multiple");
+            return state.DoS(100, error("CheckBlock(): fork block: too many txns %d > %d coinbase txns", block.vtx.size(), forkCBPerBlock),
+                             REJECT_INVALID, "bad-fork-too-many-tx");
+
+        for (unsigned int i = 1; i < block.vtx.size(); i++)
+            if (!block.vtx[i].IsCoinBase())
+                return state.DoS(100, error("CheckBlock(): fork block: non-coinbase found"),
+                                 REJECT_INVALID, "bad-fork-non-cb");
     } else {
-#endif
         for (unsigned int i = 1; i < block.vtx.size(); i++)
             if (block.vtx[i].IsCoinBase())
                 return state.DoS(100, error("CheckBlock(): more than one coinbase"),
                                 REJECT_INVALID, "bad-cb-multiple");
-#ifdef FORK_CB_INPUT
     }
-#endif
 
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
@@ -3165,16 +3223,21 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     int nHeight = pindexPrev->nHeight+1;
 
+    // because we bypass checks using the indicia in the header
+    // we reject any blocks that look like fork blocks but really
+    // are non-fork blocks
+    if(looksLikeForkBlockHeader(block) && !isForkBlock(nHeight))
+        return state.DoS(100, error("%s: non-fork block looks like fork block", __func__),
+                         REJECT_INVALID, "bad-fork-hashreserved");
+
+    if(!looksLikeForkBlockHeader(block) && isForkBlock(nHeight))
+        return state.DoS(100, error("%s: fork block does not look like fork block", __func__),
+                         REJECT_INVALID, "bad-fork-hashreserved");
+
     // Check proof of work
-#ifdef FORK_CB_INPUT
-    if (!isForkBlock(nHeight)) { //If current block is FORK, don't check work required
-#endif
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, error("%s: incorrect proof of work", __func__),
                          REJECT_INVALID, "bad-diffbits");
-#ifdef FORK_CB_INPUT
-    }
-#endif
 
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -3329,7 +3392,8 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
             if (!if_utxo.is_open()) {
                 LogPrintf("AcceptBlock(): FORK Block - Cannot open UTXO file - %s\n", utxo_file_path);
             } else {
-                LogPrintf("AcceptBlock(): FORK Block - Validating block - %u with UTXO file - %s\n", nHeight, utxo_file_path);
+                LogPrintf("AcceptBlock(): FORK Block - Validating block - %u / %s  with UTXO file - %s\n",
+                          nHeight, block.GetHash().ToString(), utxo_file_path);
 
                 vector<pair<uint64_t, CScript> > txFromFile;
                 txFromFile.reserve(forkCBPerBlock);
@@ -3689,11 +3753,7 @@ bool static LoadBlockIndexDB()
 {
     const CChainParams& chainparams = Params();
 
-#ifdef FORK_CB_INPUT
-    if (!pblocktree->LoadBlockIndexGuts(forkStartHeight, forkStartHeight+forkHeightRange))
-#else
     if (!pblocktree->LoadBlockIndexGuts())
-#endif
         return false;
 
     boost::this_thread::interruption_point();
@@ -3931,6 +3991,10 @@ void UnloadBlockIndex()
     setDirtyFileInfo.clear();
     mapNodeState.clear();
     recentRejects.reset(NULL);
+    versionbitscache.Clear();
+    for (int b = 0; b < VERSIONBITS_NUM_BITS; b++) {
+        warningcache[b].clear();
+    }
 
     BOOST_FOREACH(BlockMap::value_type& entry, mapBlockIndex) {
         delete entry.second;
@@ -5746,7 +5810,11 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
      return strprintf("CBlockFileInfo(blocks=%u, size=%u, heights=%u...%u, time=%s...%s)", nBlocks, nSize, nHeightFirst, nHeightLast, DateTimeStrFormat("%Y-%m-%d", nTimeFirst), DateTimeStrFormat("%Y-%m-%d", nTimeLast));
  }
 
-
+ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::DeploymentPos pos)
+{
+    LOCK(cs_main);
+    return VersionBitsState(chainActive.Tip(), params, pos, versionbitscache);
+}
 
 class CMainCleanup
 {

@@ -25,6 +25,7 @@
 #include "tinyformat.h"
 #include "txmempool.h"
 #include "uint256.h"
+#include "versionbits.h"
 
 #include <algorithm>
 #include <exception>
@@ -256,6 +257,9 @@ void PruneAndFlush();
 bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs, bool fRejectAbsurdFee=false);
 
+
+/** Get the BIP9 state for a given deployment at the current tip. */
+ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::DeploymentPos pos);
 
 struct CNodeStateStats {
     int nMisbehavior;
@@ -538,19 +542,25 @@ extern CBlockTreeDB *pblocktree;
  */
 int GetSpendHeight(const CCoinsViewCache& inputs);
 
+extern VersionBitsCache versionbitscache;
+
+/**
+ * Determine what nVersion a new block should use.
+ */
+int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
+
 namespace Consensus {
 bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, const Consensus::Params& consensusParams);
 }
 
 #ifdef FORK_CB_INPUT
-#define FORK_BLOCK_HEIGHT_START 1000000 //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
-#define FORK_BLOCK_HEIGHT_RANGE 65000
 #define FORK_COINBASE_PER_BLOCK 10000
 
 extern std::string forkUtxoPath;
 extern int64_t forkStartHeight;
 extern int64_t forkHeightRange;
 extern int64_t forkCBPerBlock;
+extern uint256 forkExtraHashSentinel;
 
 std::string GetUTXOFileName(int nHeight);
 
@@ -587,14 +597,12 @@ inline bool isForkBlock(int nHeight)
 {
     return (nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
 }
-inline bool isTipInForkRange()
+
+inline bool looksLikeForkBlockHeader(const CBlockHeader& header)
 {
-    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight): false;
+    return header.hashReserved == forkExtraHashSentinel;
 }
-inline bool isNextTipInForkRange()
-{
-    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight + 1): false;
-}
+
 inline uint64_t bytes2uint64(char *array)
 {
     uint64_t x =
@@ -614,5 +622,7 @@ inline bool isForkEnabled(int nHeight)
 {
     return nHeight > forkStartHeight;
 }
+
+extern uint256 hashPid;
 
 #endif // BITCOIN_MAIN_H
