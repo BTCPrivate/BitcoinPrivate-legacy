@@ -27,7 +27,7 @@ bool TransactionSignatureCreator::CreateSig(std::vector<unsigned char>& vchSig, 
 
     uint256 hash;
     try {
-        hash = SignatureHash(scriptCode, *txTo, nIn, nHashType);
+        hash = SignatureHash(scriptCode, *txTo, nIn, nHashType, FORKID_IN_USE);
     } catch (logic_error ex) {
         return false;
     }
@@ -136,7 +136,7 @@ bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutabl
     CTxIn& txin = txTo.vin[nIn];
 
     CTransaction txToConst(txTo);
-    TransactionSignatureCreator creator(&keystore, &txToConst, nIn, nHashType);
+    TransactionSignatureCreator creator(&keystore, &txToConst, nIn, nHashType | SIGHASH_FORKID);
 
     return ProduceSignature(creator, fromPubKey, txin.scriptSig);
 }
@@ -189,7 +189,7 @@ static CScript CombineMultisig(const CScript& scriptPubKey, const BaseSignatureC
             if (sigs.count(pubkey))
                 continue; // Already got a sig for this pubkey
 
-            if (checker.CheckSig(sig, pubkey, scriptPubKey))
+            if (checker.CheckSig(sig, pubkey, scriptPubKey, SCRIPT_VERIFY_FORKID))
             {
                 sigs[pubkey] = sig;
                 break;
@@ -274,9 +274,9 @@ CScript CombineSignatures(const CScript& scriptPubKey, const BaseSignatureChecke
     Solver(scriptPubKey, txType, vSolutions);
 
     vector<valtype> stack1;
-    EvalScript(stack1, scriptSig1, SCRIPT_VERIFY_STRICTENC|SCRIPT_ENABLE_SIGHASH_FORKID, BaseSignatureChecker());
+    EvalScript(stack1, scriptSig1, SCRIPT_VERIFY_STRICTENC|SCRIPT_VERIFY_FORKID, BaseSignatureChecker());
     vector<valtype> stack2;
-    EvalScript(stack2, scriptSig2, SCRIPT_VERIFY_STRICTENC|SCRIPT_ENABLE_SIGHASH_FORKID, BaseSignatureChecker());
+    EvalScript(stack2, scriptSig2, SCRIPT_VERIFY_STRICTENC|SCRIPT_VERIFY_FORKID, BaseSignatureChecker());
 
     return CombineSignatures(scriptPubKey, checker, txType, vSolutions, stack1, stack2);
 }
@@ -288,7 +288,7 @@ class DummySignatureChecker : public BaseSignatureChecker
 public:
     DummySignatureChecker() {}
 
-    bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode) const
+    bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, const unsigned int flags) const
     {
         return true;
     }

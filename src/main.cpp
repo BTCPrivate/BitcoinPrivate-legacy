@@ -1022,30 +1022,40 @@ bool CheckTransactionWithoutProofVerification(const CTransaction& tx, CValidatio
             if (txin.prevout.IsNull())
                 return state.DoS(10, error("CheckTransaction(): prevout is null"),
                                  REJECT_INVALID, "bad-txns-prevout-null");
+    }
 
-        if (tx.vjoinsplit.size() > 0) {
-            // Empty output script.
-            CScript scriptCode;
-            uint256 dataToBeSigned;
-            try {
-                dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT, SIGHASH_ALL|SIGHASH_FORKID);
-            } catch (std::logic_error ex) {
-                return state.DoS(100, error("CheckTransaction(): error computing signature hash"),
-                                 REJECT_INVALID, "error-computing-signature-hash");
-            }
+    return true;
+}
 
-            BOOST_STATIC_ASSERT(crypto_sign_PUBLICKEYBYTES == 32);
+bool CheckJoinSplitSigs(const CTransaction& tx, CValidationState &state, const unsigned int flags)
+{
+    if (tx.vjoinsplit.size() > 0) {
+        // Empty output script.
+        CScript scriptCode;
+        uint256 dataToBeSigned;
+        int hashtype = SIGHASH_ALL;
+        if(flags & SCRIPT_VERIFY_FORKID)
+            hashtype |= SIGHASH_FORKID;
 
-            // We rely on libsodium to check that the signature is canonical.
-            // https://github.com/jedisct1/libsodium/commit/62911edb7ff2275cccd74bf1c8aefcc4d76924e0
-            if (crypto_sign_verify_detached(&tx.joinSplitSig[0],
-                                            dataToBeSigned.begin(), 32,
-                                            tx.joinSplitPubKey.begin()
-                                           ) != 0) {
+        try {
+            dataToBeSigned = SignatureHash(scriptCode, tx, NOT_AN_INPUT,
+                                           hashtype, (flags & SCRIPT_VERIFY_FORKID) ? FORKID_IN_USE : FORKID_NONE);
+        } catch (std::logic_error ex) {
+            return state.DoS(100, error("CheckTransaction(): error computing signature hash"),
+                             REJECT_INVALID, "error-computing-signature-hash");
+        }
 
-                return state.DoS(100, error("CheckTransaction(): invalid joinsplit signature"),
-                                 REJECT_INVALID, "bad-txns-invalid-joinsplit-signature");
-            }
+        BOOST_STATIC_ASSERT(crypto_sign_PUBLICKEYBYTES == 32);
+
+        // We rely on libsodium to check that the signature is canonical.
+        // https://github.com/jedisct1/libsodium/commit/62911edb7ff2275cccd74bf1c8aefcc4d76924e0
+        if (crypto_sign_verify_detached(&tx.joinSplitSig[0],
+                                        dataToBeSigned.begin(), 32,
+                                        tx.joinSplitPubKey.begin()
+                ) != 0) {
+
+            return state.DoS(100, error("CheckTransaction(): invalid joinsplit signature"),
+                             REJECT_INVALID, "bad-txns-invalid-joinsplit-signature");
         }
     }
 
@@ -1789,6 +1799,9 @@ bool ContextualCheckInputs(const CTransaction& tx, CValidationState &state, cons
                     return state.DoS(100,false, REJECT_INVALID, strprintf("mandatory-script-verify-flag-failed (%s)", ScriptErrorString(check.GetScriptError())));
                 }
             }
+
+            if(!CheckJoinSplitSigs(tx, state, flags))
+                return false;
         }
     }
 
@@ -2136,6 +2149,17 @@ static int64_t nTimeIndex = 0;
 static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
+
+static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex) {
+    AssertLockHeld(cs_main);
+
+    unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
+    if(isForkEnabled(pindex->nHeight))
+        flags |= SCRIPT_VERIFY_FORKID;
+
+    return flags;
+};
+
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck)
 {
     const CChainParams& chainparams = Params();
@@ -2175,6 +2199,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return true;
     }
 
+    unsigned int flags = GetBlockScriptFlags(pindex);
+
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
     // unless those are already completely spent.
     BOOST_FOREACH(const CTransaction& tx, block.vtx) {
@@ -2183,8 +2209,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             return state.DoS(100, error("ConnectBlock(): tried to overwrite transaction"),
                              REJECT_INVALID, "bad-txns-BIP30");
     }
-
-    unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
 
     // DERSIG (BIP66) is also always enforced, but does not have a flag.
 

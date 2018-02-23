@@ -185,7 +185,7 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
     }
-    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
+    unsigned char nHashType = GetHashType(vchSig) & (~(SIGHASH_ANYONECANPAY|SIGHASH_FORKID));
     if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
         return false;
 
@@ -195,13 +195,10 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
 bool static UsesForkId(uint32_t nHashType) {
     return nHashType & SIGHASH_FORKID;
 }
+
 bool static UsesForkId(const valtype &vchSig) {
     uint32_t nHashType = GetHashType(vchSig);
     return UsesForkId(nHashType);
-}
-
-bool static AllowsNonForkId(unsigned int flags) {
-    return flags & SCRIPT_ALLOW_NON_FORKID;
 }
 
 bool static CheckSignatureEncoding(const valtype &vchSig, unsigned int flags, ScriptError* serror) {
@@ -214,18 +211,12 @@ bool static CheckSignatureEncoding(const valtype &vchSig, unsigned int flags, Sc
         return set_error(serror, SCRIPT_ERR_SIG_DER);
     } else if ((flags & SCRIPT_VERIFY_LOW_S) != 0 && !IsLowDERSignature(vchSig, serror)) {
         return false;
+    } else if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 &&  !IsDefinedHashtypeSignature(vchSig)) {
+        return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
+    } else if ((flags & SCRIPT_VERIFY_FORKID) != 0 && !UsesForkId(vchSig)) {
+        return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
     }
-
-    if ((flags & SCRIPT_VERIFY_STRICTENC) != 0) {
-        if(!IsDefinedHashtypeSignature(vchSig)) {
-            return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
-        }
-        bool requiresForkId = !AllowsNonForkId(flags);
-        bool usesForkId = UsesForkId(vchSig);
-        if (requiresForkId && !usesForkId)
-            return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
-   }
-   return true;
+    return true;
 }
 
 bool static CheckPubKeyEncoding(const valtype &vchSig, unsigned int flags, ScriptError* serror) {
@@ -866,7 +857,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                         // serror is set
                         return false;
                     }
-                    bool fSuccess = checker.CheckSig(vchSig, vchPubKey, script);
+                    bool fSuccess = checker.CheckSig(vchSig, vchPubKey, script, flags);
 
                     popstack(stack);
                     popstack(stack);
@@ -924,7 +915,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                         }
 
                         // Check signature
-                        bool fOk = checker.CheckSig(vchSig, vchPubKey, script);
+                        bool fOk = checker.CheckSig(vchSig, vchPubKey, script, flags);
 
                         if (fOk) {
                             isig++;
@@ -1089,11 +1080,8 @@ public:
 };
 
 } // anon namespace
-//
-// https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1204
-//   forkid
-//
-uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType)
+
+uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const int forkid)
 {
     if (nIn >= txTo.vin.size() && nIn != NOT_AN_INPUT) {
         throw logic_error("input index is out of range");
@@ -1102,23 +1090,21 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     // Check for invalid use of SIGHASH_SINGLE
     if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
         if (nIn >= txTo.vout.size()) {
-            throw logic_error(" no matching output for SIGHASH_SINGLE");
+            throw logic_error("no matching output for SIGHASH_SINGLE");
         }
     }
+
+    int nForkHashType = nHashType;
+    if (UsesForkId(nHashType))
+        nForkHashType |= forkid << 8;
 
     // Wrapper to serialize only the necessary parts of the transaction being signed
     CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, nHashType);
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
-    ss << txTmp << (nHashType & ~SIGHASH_FORKID);
-    // This ensures Two Way Replay Protection
-    //
-    // see instead: https://github.com/BTCGPU/BTCGPU/blob/bd007ae79c934f8c99d2247115637f8684ed861a/src/script/interpreter.cpp#L1276
-    //
-    // if (nHashType & SIGHASH_FORKID) {
-    //     ss << std::string("btcp");
-    // }
+    ss << txTmp << nForkHashType;
+
     return ss.GetHash();
 }
 
@@ -1127,7 +1113,7 @@ bool TransactionSignatureChecker::VerifySignature(const std::vector<unsigned cha
     return pubkey.Verify(sighash, vchSig);
 }
 
-bool TransactionSignatureChecker::CheckSig(const vector<unsigned char>& vchSigIn, const vector<unsigned char>& vchPubKey, const CScript& scriptCode) const
+bool TransactionSignatureChecker::CheckSig(const vector<unsigned char>& vchSigIn, const vector<unsigned char>& vchPubKey, const CScript& scriptCode, const unsigned int flags) const
 {
     CPubKey pubkey(vchPubKey);
     if (!pubkey.IsValid())
@@ -1142,7 +1128,7 @@ bool TransactionSignatureChecker::CheckSig(const vector<unsigned char>& vchSigIn
 
     uint256 sighash;
     try {
-        sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType);
+        sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, (flags & SCRIPT_VERIFY_FORKID) ? FORKID_IN_USE : 0);
     } catch (logic_error ex) {
         return false;
     }
@@ -1196,11 +1182,6 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigne
 
     if ((flags & SCRIPT_VERIFY_SIGPUSHONLY) != 0 && !scriptSig.IsPushOnly()) {
         return set_error(serror, SCRIPT_ERR_SIG_PUSHONLY);
-    }
-
-    // If SIGHASH_FORKID is enabled, we also ensure strict encoding.
-    if (flags & SCRIPT_ENABLE_SIGHASH_FORKID) {
-        flags |= SCRIPT_VERIFY_STRICTENC;
     }
 
     // Do not allow spends of P2WPKH-P2SH and P2WSH-P2SH UTXOs

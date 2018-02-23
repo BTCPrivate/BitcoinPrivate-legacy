@@ -347,6 +347,7 @@ void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCach
 /** Context-independent validity checks */
 bool CheckTransaction(const CTransaction& tx, CValidationState& state, libzcash::ProofVerifier& verifier);
 bool CheckTransactionWithoutProofVerification(const CTransaction& tx, CValidationState &state);
+bool CheckJoinSplitSigs(const CTransaction& tx, CValidationState &state, const unsigned int flags);
 
 /** Check for standard transaction types
  * @return True if all outputs (scriptPubKeys) use only standard transaction forms
@@ -616,6 +617,11 @@ inline uint64_t bytes2uint64(char *array)
     return x;
 }
 #endif
+
+inline bool isForkEnabled(int nHeight)
+{
+    return nHeight > forkStartHeight;
+}
 
 extern uint256 hashPid;
 
