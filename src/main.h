@@ -553,14 +553,13 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 }
 
 #ifdef FORK_CB_INPUT
-#define FORK_BLOCK_HEIGHT_START 1000000 //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
-#define FORK_BLOCK_HEIGHT_RANGE 65000
 #define FORK_COINBASE_PER_BLOCK 10000
 
 extern std::string forkUtxoPath;
 extern int64_t forkStartHeight;
 extern int64_t forkHeightRange;
 extern int64_t forkCBPerBlock;
+extern uint256 forkExtraHashSentinel;
 
 std::string GetUTXOFileName(int nHeight);
 
@@ -597,17 +596,15 @@ inline bool isForkBlock(int nHeight)
 {
     return (nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
 }
-inline bool isTipInForkRange()
+
+inline bool looksLikeForkBlockHeader(const CBlockHeader& header)
 {
-    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight): false;
+    return header.hashReserved == forkExtraHashSentinel;
 }
-inline bool isNextTipInForkRange()
-{
-    return chainActive.Tip()? isForkBlock(chainActive.Tip()->nHeight + 1): false;
-}
+
 inline uint64_t bytes2uint64(char *array)
 {
-    uint64_t x = 
+    uint64_t x =
     static_cast<uint64_t>(array[0])       & 0x00000000000000ff |
     static_cast<uint64_t>(array[1]) << 8  & 0x000000000000ff00 |
     static_cast<uint64_t>(array[2]) << 16 & 0x0000000000ff0000 |
@@ -619,5 +616,7 @@ inline uint64_t bytes2uint64(char *array)
     return x;
 }
 #endif
+
+extern uint256 hashPid;
 
 #endif // BITCOIN_MAIN_H

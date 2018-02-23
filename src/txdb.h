@@ -68,12 +68,7 @@ public:
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
 
-#ifdef FORK_CB_INPUT
-    bool LoadBlockIndexGuts(int64_t forkStart, int64_t forkStop);
-#else
     bool LoadBlockIndexGuts();
-#endif
-
 };
 
 #endif // BITCOIN_TXDB_H

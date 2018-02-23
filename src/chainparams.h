@@ -81,6 +81,9 @@ public:
     std::string GetFoundersRewardAddressAtIndex(int i) const;
     /** Enforce coinbase consensus rule in regtest mode */
     void SetRegTestCoinbaseMustBeProtected() { consensus.fCoinbaseMustBeProtected = true; }
+
+    uint64_t ForkStartHeight() const { return nForkStartHeight; };
+    uint64_t ForkHeightRange() const { return nForkHeightRange; };
 protected:
     CChainParams() {}
 
@@ -106,6 +109,9 @@ protected:
     bool fTestnetToBeDeprecatedFieldRPC = false;
     Checkpoints::CCheckpointData checkpointData;
     std::vector<std::string> vFoundersRewardAddress;
+
+    uint64_t nForkStartHeight;
+    uint64_t nForkHeightRange;
 };
 
 /**

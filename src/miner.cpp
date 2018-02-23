@@ -114,72 +114,120 @@ void UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, 
 #ifdef FORK_CB_INPUT
 CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound)
 {
-    CBlockIndex* pindexPrev = chainActive.Tip();
-    const int nHeight = pindexPrev->nHeight + 1;
+    /*
+      Because CreateNewForkBlock does file io when
+      reading utxos, we grab the main lock to peek
+      at the tip, release it to read the file and
+      fill in the template and then reacquire it
+      at the end to check if the active tip changed
+      while we were doing the above
+     */
+
+    CBlockTemplate * ret;
+    int tipHeight;
+    int snappedHeight;
+    const CChainParams& chainparams = Params();
+
+    {
+        LOCK(cs_main);
+        tipHeight = chainActive.Tip()->nHeight;
+    }
+
+    do
+    {
+        snappedHeight = tipHeight;
+        ret = CreateNewForkBlock(bFileNotFound, snappedHeight + 1);
+
+        {
+            LOCK(cs_main);
+            CBlockIndex* pindexPrev = chainActive.Tip();
+            CBlock *pblock = &ret->block; // pointer for convenience
+
+            tipHeight = pindexPrev->nHeight;
+            if(tipHeight != snappedHeight)
+            {
+                LogPrintf("WARN: tip changed from %u to %u while generating block template\n",
+                          snappedHeight, tipHeight);
+                continue;
+            }
+
+            // if we are good then fill in the final details
+            pblock->hashPrevBlock = pindexPrev->GetBlockHash();
+            UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+            pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
+
+            CValidationState state;
+            if (!TestBlockValidity(state, *pblock, pindexPrev, false, false))
+                throw std::runtime_error("CreateNewForkBlock(): TestBlockValidity failed");
+        }
+    } while(snappedHeight != tipHeight);
+
+    return ret;
+}
+
+CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound, const int nHeight)
+{
+    const CChainParams& chainparams = Params();
+
+    const int nForkHeight = nHeight - forkStartHeight;
 
     string utxo_file_path = GetUTXOFileName(nHeight);
-
     std::ifstream if_utxo(utxo_file_path, std::ios::binary | std::ios::in);
     if (!if_utxo.is_open()) {
         bFileNotFound = true;
-        LogPrintf("CreateNewForkBlock(): Cannot open UTXO file - %s\n", utxo_file_path);
+        LogPrintf("ERROR: CreateNewForkBlock(): [%u, %u of %u]: Cannot open UTXO file - %s\n",
+                  nHeight, nForkHeight, forkHeightRange, utxo_file_path);
         return NULL;
     }
 
-    const CChainParams& chainparams = Params();
     // Create new block
     std::unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    if (Params().MineBlocksOnDemand())
-        pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
-
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = (unsigned int)(MAX_BLOCK_SIZE-1000);
- 
-    // Minimum block size you want to create; block will be filled with free transactions
-    // until there are no more or the block reaches this size:
-    unsigned int nBlockMinSize = DEFAULT_BLOCK_MIN_SIZE;
 
+    uint64_t nBlockTotalAmount = 0;
     uint64_t nBlockSize = 1000;
     uint64_t nBlockTx = 0;
+    uint64_t nBlockSigOps = 100;
 
     while (if_utxo && nBlockTx < forkCBPerBlock) {
         char term = 0;
 
         char coin[8] = {};
         if (!if_utxo.read(coin, 8)) {
-            LogPrintf("CreateNewForkBlock(): UTXO file corrupted? - No more data (Amount)\n");
+            // the last file may be shorter than forkCBPerBlock
+            if(!if_utxo.eof() || nForkHeight != forkHeightRange)
+                LogPrintf("ERROR: CreateNewForkBlock(): [%u, %u of %u]: UTXO file corrupted? - No more data (Amount)\n",
+                          nHeight, nForkHeight, forkHeightRange);
             break;
         }
 
         char pubkeysize[8] = {};
         if (!if_utxo.read(pubkeysize, 8)) {
-            LogPrintf("CreateNewForkBlock(): UTXO file corrupted? - Not more data (PubKeyScript size)\n");
+            LogPrintf("ERROR: CreateNewForkBlock(): [%u, %u of %u]: UTXO file corrupted? - Not more data (PubKeyScript size)\n",
+                      nHeight, nForkHeight, forkHeightRange);
             break;
         }
-        
+
         int pbsize = bytes2uint64(pubkeysize);
-
-        //LogPrintf("CreateNewForkBlock():PubKeyScript size = %d\n", pbsize);
-
         if (pbsize == 0) {
-            LogPrintf("CreateNewForkBlock(): Warning! UTXO file corrupted? PubKeyScript size = 0\n");
+            LogPrintf("ERROR: CreateNewForkBlock(): [%u, %u of %u]: UTXO file corrupted? -  PubKeyScript size = 0\n",
+                      nHeight, nForkHeight, forkHeightRange);
             //but proceed
         }
 
         std::unique_ptr<char[]> pubKeyScript(new char[pbsize]);
         if (!if_utxo.read(&pubKeyScript[0], pbsize)) {
-            LogPrintf("CreateNewForkBlock(): UTXO file corrupted? Not more data (PubKeyScript)\n");
+            LogPrintf("ERROR: CreateNewForkBlock(): [%u, %u of %u]: UTXO file corrupted? Not more data (PubKeyScript)\n",
+                      nHeight, nForkHeight, forkHeightRange);
             break;
         }
 
         uint64_t amount = bytes2uint64(coin);
-        //LogPrintf("CreateNewForkBlock(): txn %u has ammount %u\n", nBlockTx, amount);
 
         // Add coinbase tx's
         CMutableTransaction txNew;
@@ -190,34 +238,45 @@ CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound)
         unsigned char* pks = (unsigned char*)pubKeyScript.get();
         txNew.vout[0].scriptPubKey = CScript(pks, pks+pbsize);
 
-        //LogPrintf("CreateNewForkBlock(): ScriptPubKey: %s\n", txNew.vout[0].scriptPubKey.ToString());
-
-
         txNew.vout[0].nValue = amount;
-        txNew.vin[0].scriptSig = CScript() << nHeight+nBlockTx << OP_0;
+        if(nBlockTx == 0)
+            txNew.vin[0].scriptSig = CScript() << nHeight << CScriptNum(nBlockTx) << ToByteVector(hashPid) << OP_0;
+        else
+            txNew.vin[0].scriptSig = CScript() << nHeight << CScriptNum(nBlockTx) << OP_0;
 
         unsigned int nTxSize = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
         if (nBlockSize + nTxSize >= nBlockMaxSize)
-            break;//We cannot skip transaction here as in regular case - or we will loose that skipped transaction
-
-        pblock->vtx.push_back(txNew);
-        pblocktemplate->vTxFees.push_back(-1); // updated at end
-        pblocktemplate->vTxSigOps.push_back(-1); // updated at end
-        nBlockSize += nTxSize;
-        ++nBlockTx;        
-
-
-        if (!if_utxo.read(&term, 1)) {
-            LogPrintf("CreateNewForkBlock(): No more data (record separator)\n");
+        {
+            LogPrintf("ERROR:  CreateNewForkBlock(): [%u, %u of %u]: %u: block would exceed max size\n",
+                      nHeight, nForkHeight, forkHeightRange, nBlockTx);
             break;
         }
-        if (term != '\n') {
-            //This maybe not an error, but warning none the less
-            LogPrintf("CreateNewForkBlock(): Warning! No record separator ('0xA') was found\n");
-            if_utxo.seekg(-1, ios_base::cur); //move one char back - if it is not a separator, maybe there is not separators at all
+
+        // Legacy limits on sigOps:
+        unsigned int nTxSigOps = GetLegacySigOpCount(txNew);
+        if (nBlockSigOps + nTxSigOps >= MAX_BLOCK_SIGOPS)
+        {
+            LogPrintf("ERROR:  CreateNewForkBlock(): [%u, %u of %u]: %u: block would exceed max sigops\n",
+                      nHeight, nForkHeight, forkHeightRange, nBlockTx);
+            break;
+        }
+
+        pblock->vtx.push_back(txNew);
+        pblocktemplate->vTxFees.push_back(0);
+        pblocktemplate->vTxSigOps.push_back(nTxSigOps);
+        nBlockSize += nTxSize;
+        nBlockSigOps += nTxSigOps;
+        nBlockTotalAmount += amount;
+        ++nBlockTx;
+
+        if (!if_utxo.read(&term, 1) || term != '\n') {
+            LogPrintf("ERROR:  CreateNewForkBlock(): [%u, %u of %u]: invalid record separator\n",
+                      nHeight, nForkHeight, forkHeightRange);
+            break;
         }
     }
-    LogPrintf("CreateNewForkBlock(): %u tnxs and total size %u\n", nBlockTx, nBlockSize);
+    LogPrintf("CreateNewForkBlock(): [%u, %u of %u]: txns=%u size=%u amount=%u sigops=%u\n",
+              nHeight, nForkHeight, forkHeightRange, nBlockTx, nBlockSize, nBlockTotalAmount, nBlockSigOps);
 
     // Randomise nonce
     arith_uint256 nonce = UintToArith256(GetRandHash());
@@ -227,22 +286,8 @@ CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound)
     pblock->nNonce = ArithToUint256(nonce);
 
     // Fill in header
-    pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-    pblock->hashReserved   = uint256();
-    UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
-    pblock->nBits          = 0x207fffff; // Difficulty = 1
-    //0x207fffff -> 0x 7fffff00 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-    //alternativly
-    //0x1d00ffff -> 0x 00000000 ffff0000 00000000 00000000 00000000 00000000 00000000 00000000
-    // or
-    //0x1f07ffff -> 0x 007fffff 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-
+    pblock->hashReserved   = forkExtraHashSentinel;
     pblock->nSolution.clear();
-    pblocktemplate->vTxSigOps[0] = 0;   //NO SigOps
-
-    CValidationState state;
-    if (!TestBlockValidity(state, *pblock, pindexPrev, false, false))
-        throw std::runtime_error("CreateNewForkBlock(): TestBlockValidity failed");
 
     return pblocktemplate.release();
 }
@@ -594,13 +639,10 @@ static bool ProcessBlockFound(CBlock* pblock, CWallet& wallet, CReserveKey& rese
 static bool ProcessBlockFound(CBlock* pblock)
 #endif // ENABLE_WALLET
 {
-#ifdef FORK_CB_INPUT
-    if (!isNextTipInForkRange()) {
-#endif
-    LogPrintf("%s\n", pblock->ToString());
-#ifdef FORK_CB_INPUT
+    if (!looksLikeForkBlockHeader(*pblock)) {
+        LogPrintf("%s\n", pblock->ToString());
     }
-#endif
+
     LogPrintf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue));
 
     // Found a solution
@@ -643,7 +685,7 @@ void static BitcoinMiner(CWallet *pwallet)
 void static BitcoinMiner()
 #endif
 {
-    LogPrintf("BTCPrivate Miner started\n");
+    LogPrintf("BTCPrivate Miner started %s\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("btcp-miner");
     const CChainParams& chainparams = Params();
@@ -673,10 +715,7 @@ void static BitcoinMiner()
     );
     miningTimer.start();
 
-#ifdef FORK_CB_INPUT
     bool bForkModeStarted = false;
-#endif
-
     try {
         while (true) {
             if (chainparams.MiningRequiresPeers()) {
@@ -705,8 +744,19 @@ void static BitcoinMiner()
             //
             unique_ptr<CBlockTemplate> pblocktemplate;
 
-#ifdef FORK_CB_INPUT
             bool isNextBlockFork = isForkBlock(pindexPrev->nHeight+1);
+
+            bool mineOnlyFork = GetBoolArg("-forkmineonly", false);
+            if(mineOnlyFork && !isNextBlockFork) {
+                miningTimer.stop();
+                do {
+                    MilliSleep(100);
+                    pindexPrev = chainActive.Tip();
+                    isNextBlockFork = isForkBlock(pindexPrev->nHeight + 1);
+                } while(!isNextBlockFork);
+                miningTimer.start();
+            }
+
             if (isNextBlockFork) {
                 if (!bForkModeStarted) {
                     LogPrintf("BTCPrivate Miner: switching into fork mode\n");
@@ -718,28 +768,26 @@ void static BitcoinMiner()
                 if (!pblocktemplate.get()) {
                     if (bFileNotFound) {
                         MilliSleep(1000);
-                        continue;                    
+                        continue;
                     } else {
                         LogPrintf("Error in BTCPrivate Miner: Cannot create Fork Block\n");
                         return;
                     }
                 }
                 pblock = &pblocktemplate->block;
+                pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
-                n = 48; k = 5;
-
-                LogPrintf("Running BTCPrivate Miner with %u forking transactions in block (%u bytes) and N = %d, K = %d\n", pblock->vtx.size(),
-                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION),
-                    n, k);
+                LogPrintf("Running BTCPrivate Miner with %u forking transactions in block (%u bytes) and N = %d, K = %d\n",
+                          pblock->vtx.size(),
+                          ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION),
+                          n, k);
             } else {
                 //if not in forking mode and/or provided file is read to the end - exit
                 if (bForkModeStarted) {
                     LogPrintf("BTCPrivate Miner: Fork is done - switching back to regular miner\n");
-                    n = chainparams.EquihashN();
-                    k = chainparams.EquihashK();
                     bForkModeStarted = false;
                 }
-#endif
+
                 nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
 
 #ifdef ENABLE_WALLET
@@ -760,13 +808,12 @@ void static BitcoinMiner()
                 pblock = &pblocktemplate->block;
 
                 LogPrintf("Running BTCPrivate Miner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
-                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+                          ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
-#ifdef FORK_CB_INPUT
+                IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
             } //else
-#endif
 
-            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+
 
             //
             // Search
@@ -799,38 +846,31 @@ void static BitcoinMiner()
                          solver, pblock->nNonce.ToString());
 
                 std::function<bool(std::vector<unsigned char>)> validBlock =
-
-                        [&pblock, &hashTarget, &m_cs, &cancelSolver, &chainparams
+                    [&pblock, &hashTarget, &m_cs, &cancelSolver, &chainparams
 #ifdef ENABLE_WALLET
-                        , &pwallet, &reservekey
+                     , &pwallet, &reservekey
 #endif
-#ifdef FORK_CB_INPUT
-                        , &isNextBlockFork
-#endif
-                        ] (std::vector<unsigned char> soln) {
+                     , &isNextBlockFork] (std::vector<unsigned char> soln) {
                     // Write the solution to the hash and compute the result.
                     LogPrint("pow", "- Checking solution against target\n");
                     pblock->nSolution = soln;
                     solutionTargetChecks.increment();
 
-#ifdef FORK_CB_INPUT
-                if (!isNextBlockFork) {
-#endif
                     if (UintToArith256(pblock->GetHash()) > hashTarget) {
                         return false;
                     }
-#ifdef FORK_CB_INPUT
-                }
-#endif
+
                     // Found a solution
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
                     LogPrintf("BTCPrivate Miner:\n");
                     LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", pblock->GetHash().GetHex(), hashTarget.GetHex());
+
+                    if (ProcessBlockFound(pblock
 #ifdef ENABLE_WALLET
-                    if (ProcessBlockFound(pblock, *pwallet, reservekey)) {
-#else
-                    if (ProcessBlockFound(pblock)) {
+                                          , *pwallet, reservekey
 #endif
+                            )) {
+
                         // Ignore chain updates caused by us
                         std::lock_guard<std::mutex> lock{m_cs};
                         cancelSolver = false;
@@ -838,7 +878,7 @@ void static BitcoinMiner()
                     SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
                     // In regression test mode, stop mining after a block is found.
-                    if (chainparams.MineBlocksOnDemand()) {
+                    if (chainparams.MineBlocksOnDemand() && !isNextBlockFork) {
                         // Increment here because throwing skips the call below
                         ehSolverRuns.increment();
                         throw boost::thread_interrupted();
@@ -846,6 +886,7 @@ void static BitcoinMiner()
 
                     return true;
                 };
+
                 std::function<bool(EhSolverCancelCheck)> cancelled = [&m_cs, &cancelSolver](EhSolverCancelCheck pos) {
                     std::lock_guard<std::mutex> lock{m_cs};
                     return cancelSolver;
@@ -902,20 +943,13 @@ void static BitcoinMiner()
                 // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
 
-#ifdef FORK_CB_INPUT
-                if (!isNextBlockFork) {
-#endif
-                    // Regtest mode doesn't require peers
-                    if (vNodes.empty() && chainparams.MiningRequiresPeers())
-                        break;
-                    if ((UintToArith256(pblock->nNonce) & 0xffff) == 0xffff)
-                        break;
-                    if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
-                        break;
-#ifdef FORK_CB_INPUT
-                }
-#endif
-
+                // Regtest mode doesn't require peers
+                if (vNodes.empty() && chainparams.MiningRequiresPeers())
+                    break;
+                if ((UintToArith256(pblock->nNonce) & 0xffff) == 0xffff)
+                    break;
+                if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+                    break;
                 if (pindexPrev != chainActive.Tip())
                     break;
 
@@ -923,17 +957,11 @@ void static BitcoinMiner()
                 pblock->nNonce = ArithToUint256(UintToArith256(pblock->nNonce) + 1);
                 UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
 
-#ifdef FORK_CB_INPUT
-                if (!isNextBlockFork) {
-#endif
-                    if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
-                    {
-                        // Changing pblock->nTime can change work required on testnet:
-                        hashTarget.SetCompact(pblock->nBits);
-                    }
-#ifdef FORK_CB_INPUT
+                if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
+                {
+                    // Changing pblock->nTime can change work required on testnet:
+                    hashTarget.SetCompact(pblock->nBits);
                 }
-#endif
             }
         }
     }

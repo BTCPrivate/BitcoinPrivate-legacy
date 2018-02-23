@@ -30,6 +30,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
 
+    // right post fork
+    else if(!isForkBlock(pindexLast->nHeight + 1) && isForkBlock(pindexLast->nHeight + 1 - params.nPowAveragingWindow))
+        return nProofOfWorkLimit;
+  
     // difficulty bomb
     else if(pindexLast->nHeight > params.nPowDifficultyBombHeight)
         return nProofOfWorkBomb;
@@ -50,29 +54,30 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 
     arith_uint256 bnAvg {bnTot / params.nPowAveragingWindow};
 
-    return CalculateNextWorkRequired(bnAvg, pindexLast->GetMedianTimePast(), pindexFirst->GetMedianTimePast(), params);
+    bool isFork = isForkBlock(pindexLast->nHeight + 1);
+    return CalculateNextWorkRequired(bnAvg, pindexLast->GetMedianTimePast(), pindexFirst->GetMedianTimePast(), params, isFork);
 }
 
 unsigned int CalculateNextWorkRequired(arith_uint256 bnAvg,
                                        int64_t nLastBlockTime, int64_t nFirstBlockTime,
-                                       const Consensus::Params& params)
+                                       const Consensus::Params& params, bool isFork)
 {
     // Limit adjustment step
     // Use medians to prevent time-warp attacks
     int64_t nActualTimespan = nLastBlockTime - nFirstBlockTime;
     LogPrint("pow", "  nActualTimespan = %d  before dampening\n", nActualTimespan);
-    nActualTimespan = params.AveragingWindowTimespan() + (nActualTimespan - params.AveragingWindowTimespan())/4;
+    nActualTimespan = params.AveragingWindowTimespan(isFork) + (nActualTimespan - params.AveragingWindowTimespan(isFork))/4;
     LogPrint("pow", "  nActualTimespan = %d  before bounds\n", nActualTimespan);
 
-    if (nActualTimespan < params.MinActualTimespan())
-        nActualTimespan = params.MinActualTimespan();
-    if (nActualTimespan > params.MaxActualTimespan())
-        nActualTimespan = params.MaxActualTimespan();
+    if (nActualTimespan < params.MinActualTimespan(isFork))
+        nActualTimespan = params.MinActualTimespan(isFork);
+    if (nActualTimespan > params.MaxActualTimespan(isFork))
+        nActualTimespan = params.MaxActualTimespan(isFork);
 
     // Retarget
     const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     arith_uint256 bnNew {bnAvg};
-    bnNew /= params.AveragingWindowTimespan();
+    bnNew /= params.AveragingWindowTimespan(isFork);
     bnNew *= nActualTimespan;
 
     if (bnNew > bnPowLimit)
