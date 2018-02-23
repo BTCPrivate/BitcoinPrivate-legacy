@@ -155,6 +155,7 @@ CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound)
             pblock->hashPrevBlock = pindexPrev->GetBlockHash();
             UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
             pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
+            pblock->nVersion = ComputeBlockVersion(pindexPrev, Params().GetConsensus());
 
             CValidationState state;
             if (!TestBlockValidity(state, *pblock, pindexPrev, false, false))
@@ -728,7 +729,7 @@ void static BitcoinMiner()
                         LOCK(cs_vNodes);
                         fvNodesEmpty = vNodes.empty();
                     }
-                    if (!fvNodesEmpty && !IsInitialBlockDownload())
+                    if (!fvNodesEmpty) // && !IsInitialBlockDownload())
                         break;
                     MilliSleep(1000);
                 } while (true);
