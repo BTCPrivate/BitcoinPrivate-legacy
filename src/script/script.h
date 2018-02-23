@@ -568,6 +568,7 @@ public:
 
     bool IsPayToWitnessScriptHash() const;
     bool IsPayToWitnessPubKeyHash() const;
+    bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
 
     /**
      * Returns whether the script is guaranteed to fail at execution,
