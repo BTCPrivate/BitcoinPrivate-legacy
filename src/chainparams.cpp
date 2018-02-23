@@ -50,6 +50,14 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
+        consensus.nPowDifficultyBombHeight = 600000;
+
+        consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
+        consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
         pchMessageStart[0] = 0xa8;
         pchMessageStart[1] = 0xea;
@@ -213,10 +221,21 @@ public:
         consensus.powLimit = uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
         consensus.fPowAllowMinDifficultyBlocks = true;
+
+        consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
+        consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+
+        consensus.nPowDifficultyBombHeight = 600000;
+
         pchMessageStart[0] = 0xf6;
         pchMessageStart[1] = 0x1b;
         pchMessageStart[2] = 0xf6;
         pchMessageStart[3] = 0xd6;
+
         vAlertPubKey = ParseHex("048679fb891b15d0cada9692047fd0ae26ad8bfb83fabddbb50334ee5bc0683294deb410be20513c5af6e7b9cec717ade82b27080ee6ef9a245c36a795ab044bb3");
         nDefaultPort = 17933;
         nPruneAfterHeight = 1000;
@@ -304,6 +323,15 @@ public:
         assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
         consensus.nPowMaxAdjustDown = 0; // Turn off adjustment down
         consensus.nPowMaxAdjustUp = 0; // Turn off adjustment up
+
+        consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
+        consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 999999999999ULL;
+
+        consensus.nPowDifficultyBombHeight = 600000;
+
         pchMessageStart[0] = 0xaa;
         pchMessageStart[1] = 0xe8;
         pchMessageStart[2] = 0x3f;

@@ -27,6 +27,7 @@
 #include "util.h"
 #include "utilmoneystr.h"
 #include "validationinterface.h"
+#include "versionbits.h"
 #include "wallet/asyncrpcoperation_sendmany.h"
 
 #include <sstream>
@@ -2084,6 +2085,51 @@ void PartitionCheck(bool (*initialDownloadCheck)(), CCriticalSection& cs, const 
     }
 }
 
+// Protected by cs_main
+VersionBitsCache versionbitscache;
+
+int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params)
+{
+    LOCK(cs_main);
+    int32_t nVersion = VERSIONBITS_TOP_BITS;
+
+    for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
+        ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
+        if (state == THRESHOLD_LOCKED_IN || state == THRESHOLD_STARTED) {
+            nVersion |= VersionBitsMask(params, (Consensus::DeploymentPos)i);
+        }
+    }
+
+    return nVersion;
+}
+
+/**
+ * Threshold condition checker that triggers when unknown versionbits are seen on the network.
+ */
+class WarningBitsConditionChecker : public AbstractThresholdConditionChecker
+{
+private:
+    int bit;
+
+public:
+    WarningBitsConditionChecker(int bitIn) : bit(bitIn) {}
+
+    int64_t BeginTime(const Consensus::Params& params) const { return 0; }
+    int64_t EndTime(const Consensus::Params& params) const { return std::numeric_limits<int64_t>::max(); }
+    int Period(const Consensus::Params& params) const { return params.nMinerConfirmationWindow; }
+    int Threshold(const Consensus::Params& params) const { return params.nRuleChangeActivationThreshold; }
+
+    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const
+    {
+        return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
+            ((pindex->nVersion >> bit) & 1) != 0 &&
+            ((ComputeBlockVersion(pindex->pprev, params) >> bit) & 1) == 0;
+    }
+};
+
+// Protected by cs_main
+static ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
+
 static int64_t nTimeVerify = 0;
 static int64_t nTimeConnect = 0;
 static int64_t nTimeIndex = 0;
@@ -2436,24 +2482,43 @@ void static UpdateTip(CBlockIndex *pindexNew) {
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
     static bool fWarned = false;
-    if (!IsInitialBlockDownload() && !fWarned)
+    if (!IsInitialBlockDownload())
     {
         int nUpgraded = 0;
         const CBlockIndex* pindex = chainActive.Tip();
+        for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
+            WarningBitsConditionChecker checker(bit);
+            ThresholdState state = checker.GetStateFor(pindex, chainParams.GetConsensus(), warningcache[bit]);
+            if (state == THRESHOLD_ACTIVE || state == THRESHOLD_LOCKED_IN) {
+                if (state == THRESHOLD_ACTIVE) {
+                    strMiscWarning = strprintf(_("Warning: unknown new rules activated (versionbit %i)"), bit);
+                    if (!fWarned) {
+                        CAlert::Notify(strMiscWarning, true);
+                        fWarned = true;
+                    }
+                } else {
+                    LogPrintf("%s: unknown new rules are about to activate (versionbit %i)\n", __func__, bit);
+                }
+            }
+        }
+
         for (int i = 0; i < 100 && pindex != NULL; i++)
         {
-            if (pindex->nVersion > CBlock::CURRENT_VERSION)
+            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus());
+            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
                 ++nUpgraded;
             pindex = pindex->pprev;
         }
         if (nUpgraded > 0)
-            LogPrintf("%s: %d of last 100 blocks above version %d\n", __func__, nUpgraded, (int)CBlock::CURRENT_VERSION);
+            LogPrintf("%s: %d of last 100 blocks have unexpected version\n", __func__, nUpgraded);
         if (nUpgraded > 100/2)
         {
             // strMiscWarning is read by GetWarnings(), called by the JSON-RPC code to warn the user:
-            strMiscWarning = _("Warning: This version is obsolete; upgrade required!");
-            CAlert::Notify(strMiscWarning, true);
-            fWarned = true;
+            strMiscWarning = _("Warning: Unknown block versions being mined! It's possible unknown rules are in effect");
+            if (!fWarned) {
+                CAlert::Notify(strMiscWarning, true);
+                fWarned = true;
+            }
         }
     }
 }
@@ -3902,6 +3967,10 @@ void UnloadBlockIndex()
     setDirtyFileInfo.clear();
     mapNodeState.clear();
     recentRejects.reset(NULL);
+    versionbitscache.Clear();
+    for (int b = 0; b < VERSIONBITS_NUM_BITS; b++) {
+        warningcache[b].clear();
+    }
 
     BOOST_FOREACH(BlockMap::value_type& entry, mapBlockIndex) {
         delete entry.second;
@@ -5717,7 +5786,11 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
      return strprintf("CBlockFileInfo(blocks=%u, size=%u, heights=%u...%u, time=%s...%s)", nBlocks, nSize, nHeightFirst, nHeightLast, DateTimeStrFormat("%Y-%m-%d", nTimeFirst), DateTimeStrFormat("%Y-%m-%d", nTimeLast));
  }
 
-
+ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::DeploymentPos pos)
+{
+    LOCK(cs_main);
+    return VersionBitsState(chainActive.Tip(), params, pos, versionbitscache);
+}
 
 class CMainCleanup
 {

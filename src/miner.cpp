@@ -302,11 +302,6 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    if (Params().MineBlocksOnDemand())
-        pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
-
     // Add dummy coinbase tx as first transaction
     pblock->vtx.push_back(CTransaction());
     pblocktemplate->vTxFees.push_back(-1); // updated at end
@@ -336,6 +331,12 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         const int nHeight = pindexPrev->nHeight + 1;
         pblock->nTime = GetAdjustedTime();
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
+        pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+        // -regtest only: allow overriding block.nVersion with
+        // -blockversion=N to test forking scenarios
+        if (chainparams.MineBlocksOnDemand())
+            pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
+
         CCoinsViewCache view(pcoinsTip);
 
         // Priority order to process transactions
