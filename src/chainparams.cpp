@@ -103,9 +103,10 @@ public:
         base58Prefixes[SCRIPT_ADDRESS]     = {0x1C,0xBD};
         // the first character, when base58 encoded, is "5" or "K" or "L" (as in Bitcoin)
         base58Prefixes[SECRET_KEY]         = {0x80};
-        // do not rely on these BIP32 prefixes; they are not specified and may change
-        base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x88,0xB2,0x1E};
-        base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x88,0xAD,0xE4};
+        // These prefixes technically don't adhere to BIP32, but are distinctly specified to avoid mixups.
+        // When base58 encoded, they are "1pub" and "1prv" for Bitcoin Private.
+        base58Prefixes[EXT_PUBLIC_KEY]     = {0x00,0x11,0x2C,0x54};
+        base58Prefixes[EXT_SECRET_KEY]     = {0x00,0x11,0x28,0x1A};
         // guarantees the first 2 characters, when base58 encoded, are "zc"
         base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0x9A};
         // guarantees the first 2 characters, when base58 encoded, are "SK"
@@ -236,7 +237,8 @@ public:
         base58Prefixes[SCRIPT_ADDRESS]     = {0x1C,0xBA};
         // the first character, when base58 encoded, is "9" or "c" (as in Bitcoin)
         base58Prefixes[SECRET_KEY]         = {0xEF};
-        // do not rely on these BIP32 prefixes; they are not specified and may change
+        // These prefixes adhere to BIP32.
+        // When base58 encoded, they are "tpub" and "tprv" for Bitcoin Private (as in Bitcoin).
         base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x35,0x87,0xCF};
         base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x35,0x83,0x94};
         // guarantees the first 2 characters, when base58 encoded, are "zt"
