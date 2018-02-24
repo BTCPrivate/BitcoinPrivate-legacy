@@ -1,6 +1,10 @@
 Bitcoin Private
 ----------------
 
+** How to join the Bitcoin Private testnet prior to the fork:
+
+* [Testnet Guide](doc/testnet.md)
+
 **Bitcoin Private v1.0.10-1**
 
 P2P Port: 17933  
