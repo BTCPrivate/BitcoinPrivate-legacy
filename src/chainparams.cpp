@@ -250,7 +250,7 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("btcprivate.org", "testnet1.btcprivate.org"));
+        vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.testnet1.btcprivate.org"));
 
         // guarantees the first 2 characters, when base58 encoded, are "n1"
         base58Prefixes[PUBKEY_ADDRESS]     = {0x19,0x58};
