@@ -3,7 +3,7 @@ Bitcoin Private
 
 **How to join the Bitcoin Private testnet prior to the fork:**
 
-* You must install btcp using the instructions below, then follow the [testnet guide](doc/testnet.md)
+You must install BTCP using the instructions below, then follow the [testnet guide](doc/testnet.md)
 
 **Bitcoin Private v1.0.10-1**
 
