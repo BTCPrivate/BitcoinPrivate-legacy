@@ -301,6 +301,9 @@ public:
         */
         };
         assert(vFoundersRewardAddress.size() <= consensus.GetLastFoundersRewardBlockHeight());
+
+        nForkStartHeight = 10;
+        nForkHeightRange = 300;
     }
 };
 static CTestNetParams testNetParams;
