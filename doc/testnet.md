@@ -4,13 +4,17 @@ Connecting to testnet
 
 After building Bitcoin private, you should have two binaries (btcpd, and btcp-cli) on your build target directory, but before running the btcp, you need to configure it:
 
-### Linux 
-
 1. Create a btcprivate.conf file
+
+#### Linux 
 
 ```
 vi ~/.btcprivate/btcprivate.conf
 ```
+
+#### Windows
+
+Click on Start/Windows Logo and type `cmd` once there type `%AppData%\BitcoinPrivate`. It will open the explorer in that directory. Create a new text file and name it as `btcprivate.conf` (be sure you remove the txt extension) in the directory and open it with a text editor
 
 2. Add the following to the conf file
 
