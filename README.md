@@ -3,7 +3,7 @@ Bitcoin Private
 
 ### Testnet
 
-You must install BTCP using the instructions below, then follow the [testnet guide](doc/testnet.md)
+Build the latest version of BTCP using the instructions below, then follow the [testnet guide](doc/testnet.md)
 
 **Bitcoin Private v1.0.10-1**
 
@@ -17,7 +17,7 @@ Bitcoin Private is a fork of Zclassic, merging in the UTXO set of Bitcoin. BTCP 
 
 The snapshot will take place on February 28th. The fork (creation of BTCP) will occur shortly after, on March 2nd.
 
-Install
+Build
 -----------------
 ### Linux
 
@@ -29,18 +29,24 @@ sudo apt-get install \
       zlib1g-dev wget bsdmainutils automake
 ```
 
-Install:
+Build:
 ```{r, engine='bash'}
+# Checkout
+git clone https://github.com/BTCPrivate/BitcoinPrivate.git
+cd BitcoinPrivate
 # Build
 ./btcputil/build.sh -j$(nproc)
 # Fetch Zcash ceremony keys
 ./btcputil/fetch-params.sh
-# Run
+```
+
+Run:
+```
 ./src/btcpd
 ```
 
 ### Windows
-There are two proven ways to build BTCP for Windows:
+Windows is not an officially or fully supported build - however there are two ways to build BTCP for Windows:
 
 * On Linux using [Mingw-w64](https://mingw-w64.org/doku.php) cross compiler tool chain. Ubuntu 16.04 Xenial is proven to work and the instructions is for such release.
 * On Windows 10 (64-bit version) using [Windows Subsystem for Linux (WSL)](https://msdn.microsoft.com/commandline/wsl/about) and Mingw-w64 cross compiler tool chain.

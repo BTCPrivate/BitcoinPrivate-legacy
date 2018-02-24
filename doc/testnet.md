@@ -2,7 +2,8 @@ Connecting to testnet
 ==========================================================
 
 First, follow the build instructions in [README](/README.md)
-To run btcpd and connect to testnet
+
+Then, to run btcpd and connect to testnet
 
 #### Linux
 ```
