@@ -1475,6 +1475,9 @@ bool IsInitialBlockDownload()
         return true;
     if (fCheckpointsEnabled && chainActive.Height() < Checkpoints::GetTotalBlocksEstimate(chainParams.Checkpoints()))
         return true;
+    if (chainActive.Height() < chainParams.ForkStartHeight() + chainParams.ForkHeightRange())
+        return true;
+
     static bool lockIBDState = false;
     if (lockIBDState)
         return false;
