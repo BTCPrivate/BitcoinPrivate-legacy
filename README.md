@@ -60,7 +60,7 @@ Follow this [link](https://msdn.microsoft.com/en-us/commandline/wsl/install_guid
 sudo apt-get install \
       build-essential pkg-config libc6-dev m4 g++-multilib \
       autoconf libtool ncurses-dev unzip git python \
-      zlib1g-dev wget bsdmainutils automake mingw-w64
+      zlib1g-dev wget bsdmainutils automake make cmake mingw-w64
 ```
 
 2. Set the default ming32 gcc/g++ compiler option to posix, fix problem with packages in Xenial
