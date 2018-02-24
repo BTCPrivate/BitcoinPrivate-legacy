@@ -7,14 +7,19 @@ You must install BTCP using the instructions below, then follow the [testnet gui
 
 **Bitcoin Private v1.0.10-1**
 
-P2P Port: 17933  
-RPC Port: 17932
+P2P Port: 7933
+RPC Port: 7932
 
 Bitcoin Private is a fork of Zclassic, merging in the UTXO set of Bitcoin. BTCP is financial freedom.
 
 ### Info
 
 The snapshot will take place on February 28th. The fork (creation of BTCP) will occur shortly after, on March 2nd.
+
+### Testnet
+
+We have a brief guide for joining the Bitcoin private testnet [here](doc/testnet.md)
+
 
 Install
 -----------------
