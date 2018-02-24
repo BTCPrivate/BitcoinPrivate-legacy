@@ -7,14 +7,12 @@ After building Bitcoin private, you should have two binaries (btcpd, and btcp-cl
 ### Linux 
 
 1. Create a btcprivate.conf file
----------------------------------
 
 ```
 vi ~/.btcprivate/btcprivate.conf
 ```
 
 2. Add the following to the conf file
----------------------------------
 
 ```
 testnet=1
