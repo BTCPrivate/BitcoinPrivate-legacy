@@ -6,7 +6,9 @@ To run btcpd and connect to testnet
 
 #### Linux
 mkdir ~/.btcprivate
+
 touch ~/.btcprivate/btcprivate.conf
+
 ./src/btcpd -testnet -gen
 
 #### Windows
