@@ -1,7 +1,7 @@
 Connecting to testnet
 ==========================================================
 
-First, follow the build instructions in [README](README.md)
+First, follow the build instructions in [README](https://github.com/BTCPrivate/BitcoinPrivate/blob/master/README.md)
 To run btcpd and connect to testnet
 
 #### Linux
