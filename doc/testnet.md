@@ -13,8 +13,13 @@ touch ~/.btcprivate/btcprivate.conf
 ```
 
 #### Windows
-Click on Start/Windows Logo and type `cmd` once there type `%AppData%\BitcoinPrivate`. It will open the explorer in that directory.Create a new text file and name it as `btcprivate.conf` (be sure you remove the txt extension) in the directory. An empty file is sufficient
-Execute the btcd binary
+Click on Start/Windows Logo and type `cmd` once there type `start %AppData%\`. It will open the explorer in that directory. Create a new folder called "BTCPrivate" and a text file. Open the text file and save as as `btcprivate.conf` (be sure you remove the txt extension) in the directory. An empty file is sufficient
 
-Once you run the daemon, it will first sync the chain. After it is synced it will begin mining blocks. If you don't wish to mine remov the -gen option from the command line.
-Now that you have your node up you can use `btcp-cli` to make RPC calls to your node (i.e `./src/btcp-cli -testnet getinfo`).
+Create a Batch file in the BTCP directory called "start-wallet.bat" with the following:
+
+```echo "Starting the BTCP Wallet"
+powershell -Command ".btcpd.exe" -testnet -gen
+@pause``
+
+Run start-wallet.bat and the blockchain will begin to be synced. After it is synced it will begin mining blocks. If you don't wish to mine remov the -gen option from the batch file.
+Now that you have your node up you can use `btcp-cli.exe` in cmd to make RPC calls to your node (i.e `btcp-cli.exe -testnet getinfo`).
