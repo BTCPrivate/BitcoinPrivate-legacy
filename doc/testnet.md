@@ -1,15 +1,15 @@
 Connecting to testnet
 ==========================================================
 
-First, follow the build instructions in [README](https://github.com/BTCPrivate/BitcoinPrivate/blob/master/README.md)
+First, follow the build instructions in [README](/README.md)
 To run btcpd and connect to testnet
 
 #### Linux
+```
 mkdir ~/.btcprivate
-
 touch ~/.btcprivate/btcprivate.conf
-
 ./src/btcpd -testnet -gen
+```
 
 #### Windows
 Click on Start/Windows Logo and type `cmd` once there type `%AppData%\BitcoinPrivate`. It will open the explorer in that directory.Create a new text file and name it as `btcprivate.conf` (be sure you remove the txt extension) in the directory. An empty file is sufficient
