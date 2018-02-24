@@ -100,10 +100,16 @@ PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') # strip out problematic Windows %P
 
 5. Installation
 
-After building in WSL, you can make a copy of the compiled executables to a directory on your Windows file system. This is done the following way
+If compiling on linux, use the following command to build the executables in `./depends/x86_64-w64-mingw32/bin/
 
 ```{r, engine='bash'}
-make install DESTDIR=/mnt/c/btcp/BTCPrivate
+sudo make install DESTDIR=
+```
+
+After building, you can make a copy of the compiled executables to a directory on your Windows file system. This is done the following way
+
+```{r, engine='bash'}
+sudo make install DESTDIR=/mnt/c/btcp/BTCPrivate
 ```
 This will install the executables to `c:\btcp\BTCPrivate
 
