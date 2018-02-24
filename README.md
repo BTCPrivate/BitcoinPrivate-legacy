@@ -1,7 +1,7 @@
 Bitcoin Private
 ----------------
 
-** How to join the Bitcoin Private testnet prior to the fork:
+**How to join the Bitcoin Private testnet prior to the fork:**
 
 * [Testnet Guide](doc/testnet.md)
 
