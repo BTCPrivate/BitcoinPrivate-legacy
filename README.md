@@ -3,8 +3,8 @@ Bitcoin Private
 
 **Bitcoin Private v1.0.10-1**
 
-P2P Port: 7933  
-RPC Port: 7932
+P2P Port: 17933  
+RPC Port: 17932
 
 Bitcoin Private is a fork of Zclassic, merging in the UTXO set of Bitcoin. BTCP is financial freedom.
 
@@ -164,6 +164,7 @@ https://github.com/zcash/zcash/wiki/1.0-User-Guide
 
 * Code review is welcome!
 * If you want to get to know us join our Discord: https://discord.gg/9xezcaK
+* We have a brief guide for joining the Bitcoin private testnet [here](doc/testnet.md)
 
 
 Participation in the Bitcoin Private project is subject to a
