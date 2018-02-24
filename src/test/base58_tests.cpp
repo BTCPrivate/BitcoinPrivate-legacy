@@ -92,6 +92,9 @@ public:
     {
         return (exp_addrType == "none");
     }
+
+    template<typename X>
+    bool operator()(const X &none) const { return false; }
 };
 
 // Visitor to check address payload
@@ -115,6 +118,9 @@ public:
     {
         return exp_payload.size() == 0;
     }
+
+    template<typename X>
+    bool operator()(const X &none) { return false; }
 };
 
 // Goal: check that parsed keys match test payload
@@ -271,4 +277,3 @@ BOOST_AUTO_TEST_CASE(base58_keys_invalid)
 
 
 BOOST_AUTO_TEST_SUITE_END()
-

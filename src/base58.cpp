@@ -216,6 +216,9 @@ public:
 
     bool operator()(const CKeyID& id) const { return addr->Set(id); }
     bool operator()(const CScriptID& id) const { return addr->Set(id); }
+    bool operator()(const WitnessV0ScriptHash& w) const { return false; }
+    bool operator()(const WitnessV0KeyHash& w) const { return false; }
+    bool operator()(const WitnessUnknown& w) const { return false; }
     bool operator()(const CNoDestination& no) const { return false; }
 };
 
@@ -386,4 +389,3 @@ libzcash::SpendingKey CZCSpendingKey::Get() const
     ss >> ret;
     return ret;
 }
-

@@ -44,7 +44,7 @@ Verify(const CScript& scriptSig, const CScript& scriptPubKey, bool fStrict, Scri
     txTo.vin[0].scriptSig = scriptSig;
     txTo.vout[0].nValue = 1;
 
-    return VerifyScript(scriptSig, scriptPubKey, fStrict ? SCRIPT_VERIFY_P2SH : SCRIPT_VERIFY_NONE, MutableTransactionSignatureChecker(&txTo, 0), &err);
+    return VerifyScript(scriptSig, scriptPubKey, fStrict ? SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS : SCRIPT_VERIFY_NONE, MutableTransactionSignatureChecker(&txTo, 0), &err);
 }
 
 
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(sign)
             txTo[i].vin[0].scriptSig = sigSave;
         }
 }
-
+/*
 BOOST_AUTO_TEST_CASE(segwitlock)
 {
     ScriptError err;
@@ -158,6 +158,61 @@ BOOST_AUTO_TEST_CASE(segwitlock)
     BOOST_CHECK(!Verify(p2shp2wshsig, p2shp2wsh, true, err));
     BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
 }
+*/
+
+BOOST_AUTO_TEST_CASE(segwitspend_wsh)
+{
+    ScriptError err;
+    CScript unwrappedPubKey,scriptSig;
+    unwrappedPubKey << OP_12 << OP_EQUAL;
+    scriptSig << OP_12;
+
+    CScript p2shPubKey = GetScriptForDestination(CScriptID(unwrappedPubKey));
+    CScript p2shScriptSig = scriptSig;
+    p2shScriptSig << Serialize(unwrappedPubKey);
+
+    CScript segwitPubKey = GetScriptForWitness(unwrappedPubKey);
+    CScript segwitScriptSig = scriptSig;
+    segwitScriptSig << Serialize(unwrappedPubKey);
+
+    CScript p2shsegwitPubKey = GetScriptForDestination(CScriptID(segwitPubKey));
+    CScript p2shsegwitScriptSig = segwitScriptSig;
+    p2shsegwitScriptSig << Serialize(segwitPubKey);
+
+    BOOST_CHECK(Verify(scriptSig, unwrappedPubKey, true, err));
+    BOOST_CHECK(Verify(p2shScriptSig, p2shPubKey, true, err));
+
+    BOOST_CHECK(segwitPubKey.IsPayToWitnessScriptHash());
+
+    BOOST_CHECK(Verify(segwitScriptSig, segwitPubKey, true, err));
+    BOOST_CHECK(Verify(p2shsegwitScriptSig, p2shsegwitPubKey, true, err));
+}
+
+/*
+BOOST_AUTO_TEST_CASE(segwitspend_wpkh)
+{
+    ScriptError err;
+    CScript unwrappedPubKey,scriptSig;
+    unwrappedPubKey << OP_DUP << OP_HASH160 << pubkeyhash << OP_EQUALVERIFY << OP_CHECKSIG;
+    scriptSig << Sign() << pubkey;
+
+    CScript p2shPubKey = GetScriptForDestination(CScriptID(unwrappedPubKey));
+    CScript p2shScriptSig = scriptSig;
+    p2shScriptSig << Serialize(unwrappedPubKey);
+
+    CScript segwitPubKey = GetScriptForDestination(WitnessV0KeyHash(unwrappedPubKey));
+    CScript segwitScriptSig = p2shScriptSig;
+
+    CScript p2shsegwitPubKey = GetScriptForDestination(CScriptID(segwitPubKey));
+    CScript p2shsegwitScriptSig = segwitScriptSig;
+    p2shsegwitScriptSig << Serialize(segwitPubKey);
+
+    BOOST_CHECK(Verify(scriptSig, unwrappedPubKey, true, err));
+    BOOST_CHECK(Verify(p2shScriptSig, p2shPubKey, true, err));
+    BOOST_CHECK(Verify(segwitScriptSig, segwitPubKey, true, err));
+    BOOST_CHECK(Verify(p2shsegwitScriptSig, p2shsegwitpubkey, true, err));
+}
+/**/
 
 BOOST_AUTO_TEST_CASE(norecurse)
 {
