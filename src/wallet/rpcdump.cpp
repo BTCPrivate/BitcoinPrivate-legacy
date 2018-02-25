@@ -556,7 +556,7 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
             "z_importkey \"zkey\" ( rescan startHeight )\n"
-            "\nIf the wallet is not encripted, it returns the address of the imported key.\n"
+            "\nIf the wallet is available, it returns the address of the imported key.\n"
             "\nAdds a zkey (as returned by z_exportkey) to your wallet.\n"
             "\nArguments:\n"
             "1. \"zkey\"             (string, required) The zkey (see z_exportkey)\n"
