@@ -40,7 +40,7 @@ else
   CXXFLAGS_overridden=no
 fi
 
-# Zcash requries C++11 compatibility; set it early:
+# Bitcoin Private / Zcash requries C++11 compatibility; set it early:
 CXXFLAGS="-std=c++11 $CXXFLAGS"
 
 AC_PROG_CXX

@@ -57,6 +57,8 @@ src/univalue/gen
 *.o
 *.o-*
 .zcash
+.zclassic
+.btcprivate
 *.a
 *.pb.cc
 *.pb.h
