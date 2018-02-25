@@ -28,8 +28,7 @@ Serialize(const CScript& s)
     return sSerialized;
 }
 
-static bool
-Verify(const CScript& scriptSig, const CScript& scriptPubKey, bool fStrict, ScriptError& err)
+CMutableTransaction BuildTransaction(const CScript& scriptSig, const CScript& scriptPubKey)
 {
     // Create dummy to/from transactions:
     CMutableTransaction txFrom;
@@ -44,6 +43,13 @@ Verify(const CScript& scriptSig, const CScript& scriptPubKey, bool fStrict, Scri
     txTo.vin[0].scriptSig = scriptSig;
     txTo.vout[0].nValue = 1;
 
+    return txTo;
+}
+
+static bool
+Verify(const CScript& scriptSig, const CScript& scriptPubKey, bool fStrict, ScriptError& err)
+{
+    auto txTo = BuildTransaction(scriptSig, scriptPubKey);
     return VerifyScript(scriptSig, scriptPubKey, fStrict ? SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS : SCRIPT_VERIFY_NONE, MutableTransactionSignatureChecker(&txTo, 0), &err);
 }
 
@@ -123,96 +129,112 @@ BOOST_AUTO_TEST_CASE(sign)
             txTo[i].vin[0].scriptSig = sigSave;
         }
 }
-/*
-BOOST_AUTO_TEST_CASE(segwitlock)
-{
-    ScriptError err;
-
-    // any scriptSig will do here
-    CScript scriptSig;
-    scriptSig << ToByteVector(uint256());
-
-    uint160 hash20;
-    CScript p2wpkh;
-    p2wpkh << OP_0 << ToByteVector(hash20);
-    BOOST_CHECK(!Verify(scriptSig, p2wpkh, true, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
-
-    CScript p2shp2wpkh = GetScriptForDestination(CScriptID(p2wpkh));
-    CScript p2shp2wpkhsig = scriptSig;
-    p2shp2wpkhsig << Serialize(p2wpkh);
-
-    BOOST_CHECK(!Verify(p2shp2wpkhsig, p2shp2wpkh, true, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
-
-    uint256 hash32;
-    CScript p2wsh;
-    p2wsh << OP_0 << ToByteVector(hash32);
-    BOOST_CHECK(!Verify(scriptSig, p2wsh, true, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
-
-    CScript p2shp2wsh = GetScriptForDestination(CScriptID(p2wsh));
-    CScript p2shp2wshsig = scriptSig;
-    p2shp2wshsig << Serialize(p2wsh);
-
-    BOOST_CHECK(!Verify(p2shp2wshsig, p2shp2wsh, true, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SEGWIT_LOCKED, ScriptErrorString(err));
-}
-*/
 
 BOOST_AUTO_TEST_CASE(segwitspend_wsh)
 {
-    ScriptError err;
-    CScript unwrappedPubKey,scriptSig;
-    unwrappedPubKey << OP_12 << OP_EQUAL;
-    scriptSig << OP_12;
+    std::vector<bool> expects = {true, false};
 
-    CScript p2shPubKey = GetScriptForDestination(CScriptID(unwrappedPubKey));
-    CScript p2shScriptSig = scriptSig;
-    p2shScriptSig << Serialize(unwrappedPubKey);
+    for(auto it = expects.begin(); it != expects.end(); it++) {
+        bool expect = *it;
 
-    CScript segwitPubKey = GetScriptForWitness(unwrappedPubKey);
-    CScript segwitScriptSig = scriptSig;
-    segwitScriptSig << Serialize(unwrappedPubKey);
+        ScriptError err;
+        CScript unwrappedPubKey,scriptSig;
+        unwrappedPubKey << OP_12 << OP_EQUAL;
+        if(expect)
+            scriptSig << OP_12;
+        else
+            scriptSig << OP_11;
 
-    CScript p2shsegwitPubKey = GetScriptForDestination(CScriptID(segwitPubKey));
-    CScript p2shsegwitScriptSig = segwitScriptSig;
-    p2shsegwitScriptSig << Serialize(segwitPubKey);
+        CScript p2shPubKey = GetScriptForDestination(CScriptID(unwrappedPubKey));
+        CScript p2shScriptSig = scriptSig;
+        p2shScriptSig << Serialize(unwrappedPubKey);
 
-    BOOST_CHECK(Verify(scriptSig, unwrappedPubKey, true, err));
-    BOOST_CHECK(Verify(p2shScriptSig, p2shPubKey, true, err));
+        CScript segwitPubKey = GetScriptForWitness(unwrappedPubKey);
+        CScript segwitScriptSig = scriptSig;
+        segwitScriptSig << Serialize(unwrappedPubKey);
 
-    BOOST_CHECK(segwitPubKey.IsPayToWitnessScriptHash());
+        CScript p2shsegwitPubKey = GetScriptForDestination(CScriptID(segwitPubKey));
+        CScript p2shsegwitScriptSig = segwitScriptSig;
+        p2shsegwitScriptSig << Serialize(segwitPubKey);
 
-    BOOST_CHECK(Verify(segwitScriptSig, segwitPubKey, true, err));
-    BOOST_CHECK(Verify(p2shsegwitScriptSig, p2shsegwitPubKey, true, err));
+        BOOST_CHECK(Verify(scriptSig, unwrappedPubKey, true, err) == expect);
+        BOOST_CHECK(Verify(p2shScriptSig, p2shPubKey, true, err) == expect);
+
+        BOOST_CHECK(p2shPubKey.IsPayToScriptHash());
+        BOOST_CHECK(segwitPubKey.IsPayToWitnessScriptHash());
+        BOOST_CHECK(p2shsegwitPubKey.IsPayToScriptHash());
+
+        BOOST_CHECK(Verify(segwitScriptSig, segwitPubKey, true, err) == expect);
+        BOOST_CHECK(Verify(p2shsegwitScriptSig, p2shsegwitPubKey, true, err) == expect);
+    }
 }
 
-/*
+void BuildPKTransaction(const CScript& scriptPubKey, CKey signingKey, CKey pushKey, CScript additionalSig, bool expect, ScriptError_t expect_err, const CScript& scriptToSign)
+{
+    CMutableTransaction txTo = BuildTransaction(CScript(), scriptPubKey);
+
+    auto lenR = 32;
+    auto lenS = 32;
+
+    uint256 hash = SignatureHash(scriptToSign, txTo, 0, SIGHASH_ALL);
+
+    std::vector<unsigned char> vchSig;
+    signingKey.Sign(hash, vchSig, 0);
+    vchSig.push_back(static_cast<unsigned char>(SIGHASH_ALL));
+
+    txTo.vin[0].scriptSig << vchSig << ToByteVector(pushKey.GetPubKey());
+    txTo.vin[0].scriptSig += additionalSig;
+
+    ScriptError err;
+    BOOST_CHECK(Verify(txTo.vin[0].scriptSig, scriptPubKey, true, err) == expect);
+
+    if(!expect)
+        BOOST_CHECK_MESSAGE(err == expect_err, ScriptErrorString(err));
+}
+
 BOOST_AUTO_TEST_CASE(segwitspend_wpkh)
 {
-    ScriptError err;
-    CScript unwrappedPubKey,scriptSig;
-    unwrappedPubKey << OP_DUP << OP_HASH160 << pubkeyhash << OP_EQUALVERIFY << OP_CHECKSIG;
-    scriptSig << Sign() << pubkey;
+    std::vector<bool> expects = {true, false};
 
-    CScript p2shPubKey = GetScriptForDestination(CScriptID(unwrappedPubKey));
-    CScript p2shScriptSig = scriptSig;
-    p2shScriptSig << Serialize(unwrappedPubKey);
+    CKey key1,key2;
+    key1.MakeNewKey(true);
+    key2.MakeNewKey(true);
 
-    CScript segwitPubKey = GetScriptForDestination(WitnessV0KeyHash(unwrappedPubKey));
-    CScript segwitScriptSig = p2shScriptSig;
+    CScript unwrappedPubKey;
+    unwrappedPubKey << OP_DUP << OP_HASH160 << ToByteVector(key1.GetPubKey().GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
-    CScript p2shsegwitPubKey = GetScriptForDestination(CScriptID(segwitPubKey));
-    CScript p2shsegwitScriptSig = segwitScriptSig;
-    p2shsegwitScriptSig << Serialize(segwitPubKey);
+    for(auto it = expects.begin(); it != expects.end(); it++) {
+        bool expect = *it;
 
-    BOOST_CHECK(Verify(scriptSig, unwrappedPubKey, true, err));
-    BOOST_CHECK(Verify(p2shScriptSig, p2shPubKey, true, err));
-    BOOST_CHECK(Verify(segwitScriptSig, segwitPubKey, true, err));
-    BOOST_CHECK(Verify(p2shsegwitScriptSig, p2shsegwitpubkey, true, err));
+        CKey k = expect ? key1 : key2;
+
+        CScript p2shPubKey = GetScriptForDestination(CScriptID(unwrappedPubKey));
+        CScript segwitPubKey = GetScriptForWitness(unwrappedPubKey);
+        CScript p2shsegwitPubKey = GetScriptForDestination(CScriptID(segwitPubKey));
+
+        BOOST_CHECK(p2shPubKey.IsPayToScriptHash());
+        BOOST_CHECK(segwitPubKey.IsPayToWitnessPubKeyHash());
+        BOOST_CHECK(p2shsegwitPubKey.IsPayToScriptHash());
+
+        CScript p2shScriptSig;
+        p2shScriptSig << Serialize(unwrappedPubKey);
+        CScript segwitScriptSig = CScript();
+        CScript p2shsegwitScriptSig = segwitScriptSig;
+        p2shsegwitScriptSig << Serialize(segwitPubKey);
+
+        BuildPKTransaction(unwrappedPubKey, key1, k, CScript(), expect, SCRIPT_ERR_EQUALVERIFY, unwrappedPubKey);
+        BuildPKTransaction(p2shPubKey, key1, k, p2shScriptSig, expect, SCRIPT_ERR_EQUALVERIFY, unwrappedPubKey);
+        BuildPKTransaction(segwitPubKey, key1, k, segwitScriptSig, expect, SCRIPT_ERR_EQUALVERIFY, unwrappedPubKey);
+        BuildPKTransaction(p2shsegwitPubKey, key1, k, p2shsegwitScriptSig, expect, SCRIPT_ERR_EQUALVERIFY, unwrappedPubKey);
+
+        if(!expect) {
+            BuildPKTransaction(unwrappedPubKey, k, key1, CScript(), expect, SCRIPT_ERR_EVAL_FALSE, unwrappedPubKey);
+            BuildPKTransaction(p2shPubKey, k, key1, p2shScriptSig, expect, SCRIPT_ERR_EVAL_FALSE, unwrappedPubKey);
+            BuildPKTransaction(segwitPubKey, k, key1, segwitScriptSig, expect, SCRIPT_ERR_EVAL_FALSE, unwrappedPubKey);
+            BuildPKTransaction(p2shsegwitPubKey, k, key1, p2shsegwitScriptSig, expect, SCRIPT_ERR_EVAL_FALSE, unwrappedPubKey);
+        }
+    }
 }
-/**/
 
 BOOST_AUTO_TEST_CASE(norecurse)
 {
