@@ -99,6 +99,17 @@ void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, int flags, bo
     stream << tx2;
     BOOST_CHECK_MESSAGE(zcashconsensus_verify_script(begin_ptr(scriptPubKey), scriptPubKey.size(), (const unsigned char*)&stream[0], stream.size(), 0, flags, NULL) == expect,message);
 #endif
+
+    // exercise the FORKID hashtype requirement
+    opcodetype op;
+    auto back = scriptPubKey.end() - 1;
+    if(scriptPubKey.GetOp(back, op) &&
+        op >= OP_CHECKSIG && op <= OP_CHECKSIGVERIFY) {
+        if(expect && scriptPubKey.GetSigOpCount(scriptSig) > 0) {
+            BOOST_CHECK_MESSAGE(!VerifyScript(scriptSig, scriptPubKey, flags | SCRIPT_VERIFY_FORKID, MutableTransactionSignatureChecker(&tx, 0), &err), "FORKID" + message);
+            BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SIG_HASHTYPE, std::string(ScriptErrorString(err)) + ": " + message);
+        }
+    }
 }
 
 void static NegateSignatureS(std::vector<unsigned char>& vchSig) {
@@ -787,7 +798,7 @@ BOOST_AUTO_TEST_CASE(script_CHECKMULTISIG23)
     CScript badsig6 = sign_multisig(scriptPubKey23, keys, txTo23);
     BOOST_CHECK(!VerifyScript(badsig6, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0), &err));
     BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_INVALID_STACK_OPERATION, ScriptErrorString(err));
-}    
+}
 
 BOOST_AUTO_TEST_CASE(script_combineSigs)
 {

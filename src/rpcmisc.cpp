@@ -145,6 +145,47 @@ public:
         }
         return obj;
     }
+
+    UniValue operator()(const WitnessV0KeyHash& id) const
+    {
+        UniValue obj(UniValue::VOBJ);
+        CPubKey pubkey;
+        obj.pushKV("isscript", false);
+        obj.pushKV("iswitness", true);
+        obj.pushKV("witness_version", 0);
+        obj.pushKV("witness_program", HexStr(id.begin(), id.end()));
+        //if (pwallet && pwallet->GetPubKey(CKeyID(id), pubkey)) {
+        //obj.pushKV("pubkey", HexStr(pubkey));
+        //}
+        return obj;
+    }
+
+    UniValue operator()(const WitnessV0ScriptHash& id) const
+    {
+        UniValue obj(UniValue::VOBJ);
+        CScript subscript;
+        obj.pushKV("isscript", true);
+        obj.pushKV("iswitness", true);
+        obj.pushKV("witness_version", 0);
+        obj.pushKV("witness_program", HexStr(id.begin(), id.end()));
+        CRIPEMD160 hasher;
+        uint160 hash;
+        hasher.Write(id.begin(), 32).Finalize(hash.begin());
+        //if (pwallet && pwallet->GetCScript(CScriptID(hash), subscript)) {
+        //ProcessSubScript(subscript, obj);
+        //}
+        return obj;
+    }
+
+    UniValue operator()(const WitnessUnknown& id) const
+    {
+        UniValue obj(UniValue::VOBJ);
+        CScript subscript;
+        obj.pushKV("iswitness", true);
+        obj.pushKV("witness_version", (int)id.version);
+        obj.pushKV("witness_program", HexStr(id.program, id.program + id.length));
+        return obj;
+    }
 };
 #endif
 
