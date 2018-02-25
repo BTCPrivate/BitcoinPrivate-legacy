@@ -81,6 +81,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
             "importprivkey \"zcashprivkey\" ( \"label\" rescan )\n"
+            "\nIf the wallet is available, it will return the addr of the private key.\n"
             "\nAdds a private key (as returned by dumpprivkey) to your wallet.\n"
             "\nArguments:\n"
             "1. \"zcashprivkey\"   (string, required) The private key (see dumpprivkey)\n"
@@ -129,7 +130,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 
         // Don't throw error in case a key is already there
         if (pwalletMain->HaveKey(vchAddress))
-            return NullUniValue;
+            return vchAddress.ToString();
 
         pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = 1;
 
@@ -144,7 +145,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
         }
     }
 
-    return NullUniValue;
+    return vchAddress.ToString();
 }
 
 UniValue importaddress(const UniValue& params, bool fHelp)
