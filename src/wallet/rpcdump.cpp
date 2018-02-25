@@ -555,6 +555,7 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
             "z_importkey \"zkey\" ( rescan startHeight )\n"
+            "\nIf the wallet is not encripted, it returns the address of the imported key.\n"
             "\nAdds a zkey (as returned by z_exportkey) to your wallet.\n"
             "\nArguments:\n"
             "1. \"zkey\"             (string, required) The zkey (see z_exportkey)\n"
@@ -615,12 +616,13 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
     CZCSpendingKey spendingkey(strSecret);
     auto key = spendingkey.Get();
     auto addr = key.address();
+    auto ret = CZCPaymentAddress(addr).ToString();
 
     {
         // Don't throw error in case a key is already there
         if (pwalletMain->HaveSpendingKey(addr)) {
             if (fIgnoreExistingKey) {
-                return NullUniValue;
+                return ret;
             }
         } else {
             pwalletMain->MarkDirty();
@@ -640,7 +642,7 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
         }
     }
 
-    return NullUniValue;
+    return ret;
 }
 
 
