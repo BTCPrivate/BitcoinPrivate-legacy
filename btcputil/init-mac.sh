@@ -83,10 +83,10 @@ function main() {
     || exit_locked_error
 
     cat <<EOF
-Zcash - fetch-params.sh
+Bitcoin Private - fetch-params.sh
 
-This script will fetch the Zcash zkSNARK parameters and verify their
-integrity with sha256sum.
+This script will fetch the Bitcoin Private (and Zcash) zkSNARK parameters and
+verify their integrity with sha256sum.
 
 If they already exist locally, it will exit now and do nothing else.
 EOF
@@ -97,7 +97,7 @@ EOF
         mkdir -p "$PARAMS_DIR"
         README_PATH="$PARAMS_DIR/README"
         cat >> "$README_PATH" <<EOF
-This directory stores common Zcash zkSNARK parameters. Note that it is
+This directory stores common Bitcoin Private zkSNARK parameters. Note that it is
 distinct from the daemon's -datadir argument because the parameters are
 large and may be shared across multiple distinct -datadir's such as when
 setting up test networks.
@@ -125,15 +125,13 @@ EOF
 main
 rm -f /tmp/fetch_params.lock
 
-if [ ! -f "$HOME/Library/Application Support/BTCprivate/btcprivate.conf" ]; then
+if [ ! -f "$HOME/Library/Application Support/BTCPrivate/btcprivate.conf" ]; then
     echo "Creating btcprivate.conf"
-    mkdir -p "$HOME/Library/Application Support/BTCprivate/"
-    echo "rpcuser=zcashrpc" > ~/Library/Application\ Support/BTCprivate/btcprivate.conf
+    mkdir -p "$HOME/Library/Application Support/BTCPrivate/"
+    echo "rpcuser=btcprpc" > ~/Library/Application\ Support/BTCPrivate/btcprivate.conf
     PASSWORD=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-    echo "rpcpassword=$PASSWORD" >> "$HOME/Library/Application Support/BTCprivate/btcprivate.conf"
+    echo "rpcpassword=$PASSWORD" >> "$HOME/Library/Application Support/BTCPrivate/btcprivate.conf"
     echo "Complete!"
 fi
 
 exit 0
-
-

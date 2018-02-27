@@ -75,11 +75,11 @@ function main() {
     || exit_locked_error
 
     cat <<EOF
-BTCPrivate - fetch-params.sh
+Bitcoin Private - fetch-params.sh
 
-This script will fetch the BTCPrivate zkSNARK parameters and verify their
-integrity with sha256sum. These parameters are identical to those for
-both ZClassic and ZCash.
+This script will fetch the Bitcoin Private (and Zcash) zkSNARK parameters, and verify
+their integrity with sha256sum. These parameters are identical to those for
+both Zclassic and Zcash.
 
 If they already exist locally, it will exit now and do nothing else.
 EOF
@@ -90,7 +90,7 @@ EOF
         mkdir -p "$PARAMS_DIR"
         README_PATH="$PARAMS_DIR/README"
         cat >> "$README_PATH" <<EOF
-This directory stores common BTCPrivate zkSNARK parameters. Note that it is
+This directory stores common Bitcoin Private zkSNARK parameters. Note that it is
 distinct from the daemon's -datadir argument because the parameters are
 large and may be shared across multiple distinct -datadir's such as when
 setting up test networks.

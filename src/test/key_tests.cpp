@@ -213,7 +213,7 @@ BOOST_AUTO_TEST_CASE(zc_address_test)
             string addr_string = paymentaddr.ToString();
 
             BOOST_CHECK(addr_string[0] == 'z');
-            BOOST_CHECK(addr_string[1] == 'c');
+            BOOST_CHECK(addr_string[1] == 'k');
 
             CZCPaymentAddress paymentaddr2(addr_string);
 

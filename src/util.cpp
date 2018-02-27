@@ -444,13 +444,13 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\Zcash
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\Zcash
-    // Mac: ~/Library/Application Support/Zcash
-    // Unix: ~/.zcash
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\BTCPrivate
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\BTCPrivate
+    // Mac: ~/Library/Application Support/BTCPrivate
+    // Unix: ~/.btcprivate
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "BTCprivate";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "BTCPrivate";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -462,7 +462,7 @@ boost::filesystem::path GetDefaultDataDir()
     // Mac
     pathRet /= "Library/Application Support";
     TryCreateDirectory(pathRet);
-    return pathRet / "BTCprivate";
+    return pathRet / "BTCPrivate";
 #else
     // Unix
     return pathRet / ".btcprivate";
@@ -900,7 +900,8 @@ std::string LicenseInfo()
     return "\n" +
            FormatParagraph(strprintf(_("Copyright (C) 2009-%i The Bitcoin Core Developers"), COPYRIGHT_YEAR)) + "\n" +
            FormatParagraph(strprintf(_("Copyright (C) 2015-%i The Zcash Developers"), COPYRIGHT_YEAR)) + "\n" +
-           FormatParagraph(strprintf(_("Copyright (C) 2015-%i zdeveloper.org"), COPYRIGHT_YEAR)) + "\n" +
+           FormatParagraph(strprintf(_("Copyright (C) 2015-%i The Zclassic Developers"), COPYRIGHT_YEAR)) + "\n" +
+           FormatParagraph(strprintf(_("Copyright (C) 2017-%i The Bitcoin Private Developers"), COPYRIGHT_YEAR)) + "\n" +
            "\n" +
            FormatParagraph(_("This is experimental software.")) + "\n" +
            "\n" +
@@ -918,4 +919,3 @@ int GetNumCores()
     return boost::thread::hardware_concurrency();
 #endif
 }
-
