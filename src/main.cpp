@@ -3237,6 +3237,8 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
         return state.DoS(100, error("%s: fork block does not look like fork block", __func__),
                          REJECT_INVALID, "bad-fork-hashreserved");
 
+    LogPrintf("CCBH: %d %d %d\n", pindexPrev->nHeight, block.nBits, GetNextWorkRequired(pindexPrev, &block, consensusParams));
+
     // Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, error("%s: incorrect proof of work", __func__),

@@ -7,19 +7,19 @@
 #define BITCOIN_POW_H
 
 #include "consensus/params.h"
-
+#include "arith_uint256.h"
 #include <stdint.h>
 
 class CBlockHeader;
 class CBlockIndex;
 class CChainParams;
 class uint256;
-class arith_uint256;
+//class arith_uint256;
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&);
 unsigned int CalculateNextWorkRequired(arith_uint256 bnAvg,
                                        int64_t nLastBlockTime, int64_t nFirstBlockTime,
-                                       const Consensus::Params&, bool isFork = false);
+                                       const Consensus::Params&, bool isFork = false, const arith_uint256 pl=arith_uint256());
 
 /** Check whether the Equihash solution in a block header is valid */
 bool CheckEquihashSolution(const CBlockHeader *pblock, const CChainParams&);
