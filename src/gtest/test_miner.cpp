@@ -49,7 +49,7 @@ TEST(Miner, GetMinerScriptPubKey) {
     EXPECT_FALSE((bool) scriptPubKey);
 
     // Partial address
-    mapArgs["-mineraddress"] = "b1T8yaLVhNqxA5KJcmiqq";
+    mapArgs["-mineraddress"] = "t1T8yaLVhNqxA5KJcmiqq";
 #ifdef ENABLE_WALLET
     scriptPubKey = GetMinerScriptPubKey(reservekey);
 #else
@@ -58,7 +58,7 @@ TEST(Miner, GetMinerScriptPubKey) {
     EXPECT_FALSE((bool) scriptPubKey);
 
     // Typo in address
-    mapArgs["-mineraddress"] = "b1TByaLVhNqxA5KJcmiqqFN88e8DNp2PBfF";
+    mapArgs["-mineraddress"] = "t1TByaLVhNqxA5KJcmiqqFN88e8DNp2PBfF";
 #ifdef ENABLE_WALLET
     scriptPubKey = GetMinerScriptPubKey(reservekey);
 #else
@@ -72,7 +72,7 @@ TEST(Miner, GetMinerScriptPubKey) {
     CScript expectedScriptPubKey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
 
     // Valid address
-    mapArgs["-mineraddress"] = "b1T8yaLVhNqxA5KJcmiqqFN88e8DNp2PBfF";
+    mapArgs["-mineraddress"] = "t1T8yaLVhNqxA5KJcmiqqFN88e8DNp2PBfF";
 #ifdef ENABLE_WALLET
     scriptPubKey = GetMinerScriptPubKey(reservekey);
 #else
@@ -92,7 +92,7 @@ TEST(Miner, GetMinerScriptPubKey) {
     EXPECT_EQ(expectedScriptPubKey, *scriptPubKey);
 
     // Valid address with trailing whitespace
-    mapArgs["-mineraddress"] = "b1T8yaLVhNqxA5KJcmiqqFN88e8DNp2PBfF  ";
+    mapArgs["-mineraddress"] = "t1T8yaLVhNqxA5KJcmiqqFN88e8DNp2PBfF  ";
 #ifdef ENABLE_WALLET
     scriptPubKey = GetMinerScriptPubKey(reservekey);
 #else
