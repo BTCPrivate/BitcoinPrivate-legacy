@@ -23,17 +23,29 @@
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
-    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
+    int nHeight = pindexLast->nHeight + 1;
+
+    arith_uint256 proofOfWorkLimit;
+    if(isForkBlock(nHeight) || isForkBlock(nHeight - params.nPowAveragingWindow))
+        proofOfWorkLimit = UintToArith256(uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+    else
+        proofOfWorkLimit = UintToArith256(params.powLimit);
+
+    unsigned int nProofOfWorkLimit = proofOfWorkLimit.GetCompact();
     unsigned int nProofOfWorkBomb  = UintToArith256(uint256S("000000000000000000000000000000000000000000000000000000000000ffff")).GetCompact();
 
     // Genesis block
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
 
-    // right post fork
-    else if(!isForkBlock(pindexLast->nHeight + 1) && isForkBlock(pindexLast->nHeight + 1 - params.nPowAveragingWindow))
+    // right at fork
+    else if(isForkBlock(nHeight) && !isForkBlock(nHeight - params.nPowAveragingWindow))
         return nProofOfWorkLimit;
-  
+
+    // right post fork
+    else if(!isForkBlock(nHeight) && isForkBlock(nHeight - params.nPowAveragingWindow))
+        return nProofOfWorkLimit;
+
     // difficulty bomb
     else if(pindexLast->nHeight > params.nPowDifficultyBombHeight)
         return nProofOfWorkBomb;
@@ -55,12 +67,12 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     arith_uint256 bnAvg {bnTot / params.nPowAveragingWindow};
 
     bool isFork = isForkBlock(pindexLast->nHeight + 1);
-    return CalculateNextWorkRequired(bnAvg, pindexLast->GetMedianTimePast(), pindexFirst->GetMedianTimePast(), params, isFork);
+    return CalculateNextWorkRequired(bnAvg, pindexLast->GetMedianTimePast(), pindexFirst->GetMedianTimePast(), params, proofOfWorkLimit, isFork);
 }
 
 unsigned int CalculateNextWorkRequired(arith_uint256 bnAvg,
                                        int64_t nLastBlockTime, int64_t nFirstBlockTime,
-                                       const Consensus::Params& params, bool isFork)
+                                       const Consensus::Params& params, const arith_uint256 bnPowLimit, bool isFork)
 {
     // Limit adjustment step
     // Use medians to prevent time-warp attacks
@@ -75,7 +87,6 @@ unsigned int CalculateNextWorkRequired(arith_uint256 bnAvg,
         nActualTimespan = params.MaxActualTimespan(isFork);
 
     // Retarget
-    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     arith_uint256 bnNew {bnAvg};
     bnNew /= params.AveragingWindowTimespan(isFork);
     bnNew *= nActualTimespan;
