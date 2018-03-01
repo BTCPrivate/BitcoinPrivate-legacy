@@ -720,6 +720,8 @@ void static BitcoinMiner()
     try {
         while (true) {
             if (chainparams.MiningRequiresPeers()) {
+                bool fForkMiner = GetBoolArg("-fork-mine", false);
+
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
                 miningTimer.stop();
@@ -729,7 +731,7 @@ void static BitcoinMiner()
                         LOCK(cs_vNodes);
                         fvNodesEmpty = vNodes.empty();
                     }
-                    if (!fvNodesEmpty && !IsInitialBlockDownload())
+                    if (!fvNodesEmpty && (fForkMiner || !IsInitialBlockDownload(true)))
                         break;
                     MilliSleep(1000);
                 } while (true);
@@ -746,17 +748,6 @@ void static BitcoinMiner()
             unique_ptr<CBlockTemplate> pblocktemplate;
 
             bool isNextBlockFork = isForkBlock(pindexPrev->nHeight+1);
-
-            bool mineOnlyFork = GetBoolArg("-forkmineonly", false);
-            if(mineOnlyFork && !isNextBlockFork) {
-                miningTimer.stop();
-                do {
-                    MilliSleep(100);
-                    pindexPrev = chainActive.Tip();
-                    isNextBlockFork = isForkBlock(pindexPrev->nHeight + 1);
-                } while(!isNextBlockFork);
-                miningTimer.start();
-            }
 
             if (isNextBlockFork) {
                 if (!bForkModeStarted) {

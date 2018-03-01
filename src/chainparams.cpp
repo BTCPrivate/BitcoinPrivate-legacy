@@ -43,7 +43,7 @@ public:
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 4000;
-        consensus.powLimit = uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowAveragingWindow = 17;
         assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
         consensus.nPowMaxAdjustDown = 32; // 32% adjustment down
@@ -61,8 +61,8 @@ public:
 
         pchMessageStart[0] = 0xa8;
         pchMessageStart[1] = 0xea;
-        pchMessageStart[2] = 0xb2;
-        pchMessageStart[3] = 0xed;
+        pchMessageStart[2] = 0xa2;
+        pchMessageStart[3] = 0xcd;
         vAlertPubKey = ParseHex("04f2cd746e629ffd320a81287474c98c2ad15d15b0a210b0144edcd8f3e1301c6311fd751fa34ba17d88090374cfec7cd9aaca55a5a0c4456511acc01b922005de");
         nDefaultPort = 7933;
         nMaxTipAge = 24 * 60 * 60;
@@ -200,8 +200,8 @@ public:
         assert(vFoundersRewardAddress.size() <= consensus.GetLastFoundersRewardBlockHeight());
 
         //current ZCL height is 200K-300K, this value here is placeholder, it will have to be changed to correct fork block height
-        nForkStartHeight = 1000000;
-        nForkHeightRange = 65000;
+        nForkStartHeight = 272991;
+        nForkHeightRange = 5467;
     }
 };
 static CMainParams mainParams;
