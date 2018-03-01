@@ -1477,7 +1477,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     return nSubsidy;
 }
 
-bool IsInitialBlockDownload()
+bool IsInitialBlockDownload(bool includeFork)
 {
     const CChainParams& chainParams = Params();
     LOCK(cs_main);
@@ -1485,7 +1485,7 @@ bool IsInitialBlockDownload()
         return true;
     if (fCheckpointsEnabled && chainActive.Height() < Checkpoints::GetTotalBlocksEstimate(chainParams.Checkpoints()))
         return true;
-    if (chainActive.Height() < chainParams.ForkStartHeight() + chainParams.ForkHeightRange())
+    if (includeFork && chainActive.Height() < chainParams.ForkStartHeight() + chainParams.ForkHeightRange())
         return true;
 
     static bool lockIBDState = false;

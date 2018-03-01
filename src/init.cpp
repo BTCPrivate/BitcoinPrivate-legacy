@@ -712,6 +712,8 @@ static void ZC_LoadParams()
     pzcashParams->setProvingKeyPath(pk_path.string());
 }
 
+bool IsInitialBlockDownloadBind(){ return IsInitialBlockDownload(false); }
+
 bool AppInitServers(boost::thread_group& threadGroup)
 {
     RPCServer::OnStopped(&OnRPCStopped);
@@ -897,10 +899,12 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
 #ifdef FORK_CB_INPUT
-    forkUtxoPath = GetArg("-utxo-path", "");
+    auto default_data_dir = GetDataDir() / "utxo_snapshot";
+    forkUtxoPath = GetArg("-utxo-path", default_data_dir.string());
     forkStartHeight = GetArg("-fork-startheight", chainparams.ForkStartHeight());
     forkHeightRange = GetArg("-fork-heightrange", chainparams.ForkHeightRange());
     forkCBPerBlock = GetArg("-fork-cbperblock", FORK_COINBASE_PER_BLOCK);
+    LogPrintf("Running with fork parameters datadir=%s forkStartHeight=%d, forkHeightRange=%d\n", forkUtxoPath, forkStartHeight, forkHeightRange);
 #endif
 
     // ********************************************************* Step 3: parameter-to-internal-flags
@@ -1697,7 +1701,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Monitor the chain, and alert if we get blocks much quicker or slower than expected
     int64_t nPowTargetSpacing = Params().GetConsensus().nPowTargetSpacing;
-    CScheduler::Function f = boost::bind(&PartitionCheck, &IsInitialBlockDownload,
+    CScheduler::Function f = boost::bind(&PartitionCheck, &IsInitialBlockDownloadBind,
                                          boost::ref(cs_main), boost::cref(pindexBestHeader), nPowTargetSpacing);
     scheduler.scheduleEvery(f, nPowTargetSpacing);
 
