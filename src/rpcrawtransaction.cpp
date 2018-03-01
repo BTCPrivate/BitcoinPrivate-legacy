@@ -62,7 +62,9 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
         UniValue joinsplit(UniValue::VOBJ);
 
         joinsplit.push_back(Pair("vpub_old", ValueFromAmount(jsdescription.vpub_old)));
+		joinsplit.push_back(Pair("vpub_oldZat", jsdescription.vpub_old));
         joinsplit.push_back(Pair("vpub_new", ValueFromAmount(jsdescription.vpub_new)));
+		joinsplit.push_back(Pair("vpub_newZat", jsdescription.vpub_new));
 
         joinsplit.push_back(Pair("anchor", jsdescription.anchor.GetHex()));
 
@@ -110,9 +112,10 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
     return vjoinsplit;
 }
 
-void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+void TxToJSONExpanded(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, int nHeight = 0, int nConfirmations = 0, int nBlockTime = 0)
 {
-    entry.push_back(Pair("txid", tx.GetHash().GetHex()));
+    uint256 txid = tx.GetHash();
+	entry.push_back(Pair("txid", txid.GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
     entry.push_back(Pair("locktime", (int64_t)tx.nLockTime));
     UniValue vin(UniValue::VARR);
@@ -127,6 +130,19 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             o.push_back(Pair("asm", txin.scriptSig.ToString()));
             o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
             in.push_back(Pair("scriptSig", o));
+			
+			// Add address and value info if spentindex enabled
+             CSpentIndexValue spentInfo;
+             CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
+             if (GetSpentIndex(spentKey, spentInfo)) {
+                 in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
+                 in.push_back(Pair("valueSat", spentInfo.satoshis));
+                 if (spentInfo.addressType == 1) {
+                     in.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
+                 } else if (spentInfo.addressType == 2)  {
+                     in.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
+                 }
+             }
         }
         in.push_back(Pair("sequence", (int64_t)txin.nSequence));
         vin.push_back(in);
@@ -137,17 +153,83 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        out.push_back(Pair("valueZat", txout.nValue));
+        out.push_back(Pair("valueSat", txout.nValue));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
         out.push_back(Pair("scriptPubKey", o));
+		
+		// Add spent information if spentindex is enabled
+         CSpentIndexValue spentInfo;
+         CSpentIndexKey spentKey(txid, i);
+         if (GetSpentIndex(spentKey, spentInfo)) {
+             out.push_back(Pair("spentTxId", spentInfo.txid.GetHex()));
+             out.push_back(Pair("spentIndex", (int)spentInfo.inputIndex));
+             out.push_back(Pair("spentHeight", spentInfo.blockHeight));
+         }
         vout.push_back(out);
     }
     entry.push_back(Pair("vout", vout));
 
     UniValue vjoinsplit = TxJoinSplitToJSON(tx);
     entry.push_back(Pair("vjoinsplit", vjoinsplit));
+	
+	if (!hashBlock.IsNull()) {
+         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
+ 
+         if (nConfirmations > 0) {
+             entry.push_back(Pair("height", nHeight));
+             entry.push_back(Pair("confirmations", nConfirmations));
+             entry.push_back(Pair("time", nBlockTime));
+             entry.push_back(Pair("blocktime", nBlockTime));
+         } else {
+             entry.push_back(Pair("height", -1));
+             entry.push_back(Pair("confirmations", 0));
+         }
+     }
+ 
+ }
+ 
+ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+ {
+ 
+     uint256 txid = tx.GetHash();
+     entry.push_back(Pair("txid", txid.GetHex()));
+     entry.push_back(Pair("size", (int)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
+     entry.push_back(Pair("version", tx.nVersion));
+     entry.push_back(Pair("locktime", (int64_t)tx.nLockTime));
+ 
+     UniValue vin(UniValue::VARR);
+     BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+         UniValue in(UniValue::VOBJ);
+         if (tx.IsCoinBase())
+             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+         else {
+             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
+             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
+             UniValue o(UniValue::VOBJ);
+             o.push_back(Pair("asm", txin.scriptSig.ToString()));
+             o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+             in.push_back(Pair("scriptSig", o));
+         }
+         in.push_back(Pair("sequence", (int64_t)txin.nSequence));
+         vin.push_back(in);
+     }
+     entry.push_back(Pair("vin", vin));
+ 
+     UniValue vout(UniValue::VARR);
+     for (unsigned int i = 0; i < tx.vout.size(); i++) {
+         const CTxOut& txout = tx.vout[i];
+         UniValue out(UniValue::VOBJ);
+         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+         out.push_back(Pair("valueSat", txout.nValue));
+         out.push_back(Pair("n", (int64_t)i));
+         UniValue o(UniValue::VOBJ);
+         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
+         out.push_back(Pair("scriptPubKey", o));
+         vout.push_back(out);
+     }
+     entry.push_back(Pair("vout", vout));
 
     if (!hashBlock.IsNull()) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
@@ -158,9 +240,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
                 entry.push_back(Pair("time", pindex->GetBlockTime()));
                 entry.push_back(Pair("blocktime", pindex->GetBlockTime()));
-            }
-            else
+            } else {
+				entry.push_back(Pair("height", -1));
                 entry.push_back(Pair("confirmations", 0));
+			}
         }
     }
 }
@@ -204,7 +287,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
             "  ],\n"
             "  \"vout\" : [              (array of json objects)\n"
             "     {\n"
-            "       \"value\" : x.xxx,            (numeric) The value in btc\n"
+            "       \"value\" : x.xxx,            (numeric) The value in BTCP\n"
             "       \"n\" : n,                    (numeric) index\n"
             "       \"scriptPubKey\" : {          (json object)\n"
             "         \"asm\" : \"asm\",          (string) the asm\n"
@@ -221,8 +304,8 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
             "  ],\n"
             "  \"vjoinsplit\" : [        (array of json objects, only for version >= 2)\n"
             "     {\n"
-            "       \"vpub_old\" : x.xxx,         (numeric) public input value in ZEC\n"
-            "       \"vpub_new\" : x.xxx,         (numeric) public output value in ZEC\n"
+            "       \"vpub_old\" : x.xxx,         (numeric) public input value in BTCP\n"
+            "       \"vpub_new\" : x.xxx,         (numeric) public output value in BTCP\n"
             "       \"anchor\" : \"hex\",         (string) the anchor\n"
             "       \"nullifiers\" : [            (json array of string)\n"
             "         \"hex\"                     (string) input note nullifier\n"
@@ -268,8 +351,29 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
 
     CTransaction tx;
     uint256 hashBlock;
-    if (!GetTransaction(hash, tx, hashBlock, true))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+	int nHeight = 0;
+	int nConfirmations = 0;
+    int nBlockTime = 0;
+ 
+     {
+         LOCK(cs_main);
+         if (!GetTransaction(hash, tx, hashBlock, true))
+             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+ 
+         BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
+         if (mi != mapBlockIndex.end() && (*mi).second) {
+             CBlockIndex* pindex = (*mi).second;
+             if (chainActive.Contains(pindex)) {
+                 nHeight = pindex->nHeight;
+                 nConfirmations = 1 + chainActive.Height() - pindex->nHeight;
+                 nBlockTime = pindex->GetBlockTime();
+             } else {
+                 nHeight = -1;
+                 nConfirmations = 0;
+                 nBlockTime = pindex->GetBlockTime();
+             }
+         }
+     }
 
     string strHex = EncodeHexTx(tx);
 
@@ -278,7 +382,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hex", strHex));
-    TxToJSON(tx, hashBlock, result);
+	TxToJSONExpanded(tx, hashBlock, result, nHeight, nConfirmations, nBlockTime);
     return result;
 }
 
@@ -289,7 +393,7 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
             "gettxoutproof [\"txid\",...] ( blockhash )\n"
             "\nReturns a hex-encoded proof that \"txid\" was included in a block.\n"
             "\nNOTE: By default this function only works sometimes. This is when there is an\n"
-            "unspent output in the utxo for this transaction. To make it always work,\n"
+            "unspent output in the UTXO for this transaction. To make it always work,\n"
             "you need to maintain a transaction index, using the -txindex command line option or\n"
             "specify the block in which the transaction is included in manually (by blockhash).\n"
             "\nReturn the raw transaction data.\n"
@@ -417,7 +521,7 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
             "     ]\n"
             "2. \"addresses\"           (string, required) a json object with addresses as keys and amounts as values\n"
             "    {\n"
-            "      \"address\": x.xxx   (numeric, required) The key is the bitcoin address, the value is the btc amount\n"
+            "      \"address\": x.xxx   (numeric, required) The key is the bitcoin address, the value is the BTCP amount\n"
             "      ,...\n"
             "    }\n"
 
