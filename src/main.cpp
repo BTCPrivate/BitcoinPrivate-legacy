@@ -29,6 +29,7 @@
 #include "validationinterface.h"
 #include "versionbits.h"
 #include "wallet/asyncrpcoperation_sendmany.h"
+#include "wallet/asyncrpcoperation_shieldcoinbase.h"
 
 #include <sstream>
 
