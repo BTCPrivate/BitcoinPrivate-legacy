@@ -25,7 +25,12 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 {
     int nHeight = pindexLast->nHeight + 1;
 
-    arith_uint256 proofOfWorkLimit = UintToArith256(params.powLimit);
+    arith_uint256 proofOfWorkLimit;
+    if(!isForkEnabled(nHeight))
+        proofOfWorkLimit = UintToArith256(uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+    else
+        proofOfWorkLimit = UintToArith256(params.powLimit);
+
     unsigned int nProofOfWorkLimit = proofOfWorkLimit.GetCompact();
     unsigned int nProofOfWorkBomb  = UintToArith256(uint256S("000000000000000000000000000000000000000000000000000000000000ffff")).GetCompact();
 
