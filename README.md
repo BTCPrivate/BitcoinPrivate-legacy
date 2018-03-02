@@ -1,10 +1,6 @@
 Bitcoin Private
 ----------------
 
-### Testnet
-
-Build the latest version of BTCP using the instructions below, then follow the [testnet guide](doc/testnet.md)
-
 **Bitcoin Private v1.0.10-1**
 
 P2P Port: 7933
@@ -137,6 +133,10 @@ Install:
 ### Additional notes
 
 If you plan to build for windows and linux at the same time, be sure to delete all the built files for whatever you build first. An easy way to do this is by taking the binaries out of the repo, delete all files except the .git folder and then do a git hard reset.
+
+### Testnet
+
+Build the latest version of BTCP using the instructions below, then follow the [testnet guide](doc/testnet.md)
 
 About
 --------------
