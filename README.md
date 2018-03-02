@@ -36,6 +36,22 @@ cd BitcoinPrivate
 ./btcputil/fetch-params.sh
 ```
 
+Create Config File:
+```
+mkdir ~/.btcprivate
+touch ~/.btcprivate/btcprivate.conf
+vi ~/.btcprivate/btcprivate.conf
+```
+
+Add following lines to `btcprivate.conf` and be sure to change the rpcpassword:
+```
+rpcuser=btcprivaterpc
+rpcpassword=set-a-password
+rpcallowip=127.0.0.1
+addnode=dnsseed.btcprivate.org
+```
+
+
 Run:
 ```
 ./src/btcpd
