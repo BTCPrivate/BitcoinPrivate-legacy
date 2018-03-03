@@ -35,12 +35,10 @@ cd BitcoinPrivate
 ./btcputil/fetch-params.sh
 ./btcputil/build.sh -j$(nproc)
 ```
-```
-cd ~/.btcprivate/
-```
 
 # Download + Decompress Snapshot Data (BTC UTXOs)
 ```
+cd ~/.btcprivate/
 curl https://s3.amazonaws.com/btcp.snapshot/utxo_snapshot.tar.gz | tar xvz
 ```
 
