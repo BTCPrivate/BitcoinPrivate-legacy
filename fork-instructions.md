@@ -16,6 +16,8 @@ cd ~/.btcprivate/
 curl https://s3.amazonaws.com/btcp.snapshot/utxo_snapshot.tar.gz | tar xvz
 ```
 
+You can also generate the utxo_snapshot yourself [here](https://github.com/BTCPrivate/utxo_dump).
+
 # Make the config file
 ```
 mkdir ~/.btcprivate
