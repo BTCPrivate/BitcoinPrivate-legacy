@@ -3,8 +3,10 @@
 Linux ONLY, 500GB+ recommended
 
 **Bitcoin Private**
+
 March 2, 2018
 
+#
 
 **Install Bitcoin Private**
 
