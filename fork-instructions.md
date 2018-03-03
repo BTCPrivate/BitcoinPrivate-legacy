@@ -22,9 +22,8 @@ sudo mkswap swapfile
 sudo chmod 0600 /swapfile
 sudo swapon swapfile
 echo "/swapfile none swap sw 0 0" | sudo tee -a etc/fstab > /dev/null
+cd ~
 ```
-
-`cd ~`
 
 # Clone the BitcoinPrivate repo
 ```
