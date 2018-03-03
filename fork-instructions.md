@@ -3,7 +3,7 @@
 # Linux ONLY, 500GB+ recommended
 #
 # Bitcoin Private
-# March 3, 2018
+# March 2, 2018
 #
 
 # Install Dependencies
