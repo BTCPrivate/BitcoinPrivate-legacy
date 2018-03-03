@@ -1,7 +1,6 @@
-```
 #
 # Instructions to set up a BitcoinPrivate full-node
-# Linux, 500GB+ recommended
+# Linux ONLY, 500GB+ recommended
 #
 # Bitcoin Private
 # March 3, 2018
@@ -41,5 +40,3 @@ curl https://s3.amazonaws.com/btcp.snapshot/utxo_snapshot.tar.gz | tar xvz
 # Run the daemon
 cd ~/BitcoinPrivate
 ./src/btcpd
-
-```
