@@ -1,6 +1,8 @@
 
-# Instructions to set up a BitcoinPrivate full-node
+# Instructions to set up a BitcoinPrivate full-node to Mine the Fork
 Linux ONLY, 500GB+ recommended
+
+*You will not receive a mining reward if you choose to help mine the fork*
 
 **Bitcoin Private**
 
