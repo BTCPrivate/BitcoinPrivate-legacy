@@ -41,6 +41,21 @@ cd BitcoinPrivate
 cd ~/.btcprivate/
 curl https://s3.amazonaws.com/btcp.snapshot/utxo_snapshot.tar.gz | tar xvz
 ```
+# Make the config file
+```
+mkdir ~/.btcprivate
+touch ~/.btcprivate/btcprivate.conf
+vi ~/.btcprivate/btcprivate.conf
+```
+
+Add the following lines to the config file and change the password for security:
+```
+rpcuser=btcprivaterpcuser 
+rpcpassword=
+addnode=dnsseed.btcprivate.org 
+gen=1
+fork-mine=1
+```
 
 # Run the daemon
 ```
