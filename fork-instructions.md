@@ -15,12 +15,12 @@ sudo apt-get -y install \
       zlib1g-dev wget bsdmainutils make automake
 
 # OPTIONAL: Make sure you have a big enough Swapfile
-#cd /
-#sudo dd if=/dev/zero of=swapfile bs=1M count=3000
-#sudo mkswap swapfile
-#sudo chmod 0600 /swapfile
-#sudo swapon swapfile
-#echo "/swapfile none swap sw 0 0" | sudo tee -a etc/fstab > /dev/null
+```cd /
+sudo dd if=/dev/zero of=swapfile bs=1M count=3000
+sudo mkswap swapfile
+sudo chmod 0600 /swapfile
+sudo swapon swapfile
+echo "/swapfile none swap sw 0 0" | sudo tee -a etc/fstab > /dev/null```
 
 cd ~
 
