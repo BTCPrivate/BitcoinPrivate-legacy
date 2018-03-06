@@ -40,9 +40,8 @@
 #endif
 #include <mutex>
 
-#ifdef FORK_CB_INPUT
 #include <fstream>
-#endif
+
 
 
 using namespace std;
@@ -111,7 +110,6 @@ void UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, 
         pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
 }
 
-#ifdef FORK_CB_INPUT
 CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound)
 {
     /*
@@ -292,7 +290,6 @@ CBlockTemplate* CreateNewForkBlock(bool& bFileNotFound, const int nHeight)
 
     return pblocktemplate.release();
 }
-#endif
 
 CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 {
@@ -668,11 +665,7 @@ static bool ProcessBlockFound(CBlock* pblock)
 
     // Process this block the same as if we had received it from another node
     CValidationState state;
-    if (!ProcessNewBlock(state, NULL, pblock, true, NULL
-#ifdef FORK_CB_INPUT
-        , true
-#endif
-    ))
+    if (!ProcessNewBlock(state, NULL, pblock, true, NULL))
         return error("BTCPrivate Miner: ProcessNewBlock, block not accepted");
 
     TrackMinedBlock(pblock->GetHash());
