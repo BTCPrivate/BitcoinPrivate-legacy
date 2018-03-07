@@ -58,7 +58,7 @@ Run:
 ```
 
 ### Windows
-Windows is not an officially or fully supported build - however there are two ways to build BTCP for Windows:
+Windows is not a fully supported build - however there are two ways to build BTCP for Windows:
 
 * On Linux using [Mingw-w64](https://mingw-w64.org/doku.php) cross compiler tool chain. Ubuntu 16.04 Xenial is proven to work and the instructions is for such release.
 * On Windows 10 (64-bit version) using [Windows Subsystem for Linux (WSL)](https://msdn.microsoft.com/commandline/wsl/about) and Mingw-w64 cross compiler tool chain.
