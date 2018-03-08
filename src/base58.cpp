@@ -216,8 +216,8 @@ public:
 
     bool operator()(const CKeyID& id) const { return addr->Set(id); }
     bool operator()(const CScriptID& id) const { return addr->Set(id); }
-    bool operator()(const WitnessV0ScriptHash& w) const { return false; }
-    bool operator()(const WitnessV0KeyHash& w) const { return false; }
+    bool operator()(const WitnessV0ScriptHash& w) const { return addr->Set(w); }
+    bool operator()(const WitnessV0KeyHash& w) const { return addr->Set(w); }
     bool operator()(const WitnessUnknown& w) const { return false; }
     bool operator()(const CNoDestination& no) const { return false; }
 };
@@ -233,6 +233,20 @@ bool CBitcoinAddress::Set(const CKeyID& id)
 bool CBitcoinAddress::Set(const CScriptID& id)
 {
     SetData(Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS), &id, 20);
+    return true;
+}
+
+bool CBitcoinAddress::Set(const WitnessV0KeyHash &w)
+{
+    SetData(Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS), &w, 20);
+    return true;
+}
+
+bool CBitcoinAddress::Set(const WitnessV0ScriptHash &w)
+{
+    uint160 h160;
+    CRIPEMD160().Write(w.begin(), w.size()).Finalize(h160.begin());
+    SetData(Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS), &h160, 20);
     return true;
 }
 

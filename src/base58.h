@@ -129,6 +129,9 @@ public:
     bool Set(const CKeyID &id);
     bool Set(const CScriptID &id);
     bool Set(const CTxDestination &dest);
+    bool Set(const WitnessV0KeyHash &w);
+    bool Set(const WitnessV0ScriptHash &w);
+
     bool IsValid() const;
     bool IsValid(const CChainParams &params) const;
     bool SetString(const char* pszSecret);

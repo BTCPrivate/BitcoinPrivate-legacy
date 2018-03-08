@@ -112,6 +112,7 @@ UniValue getinfo(const UniValue& params, bool fHelp)
 class DescribeAddressVisitor : public boost::static_visitor<UniValue>
 {
 public:
+
     UniValue operator()(const CNoDestination &dest) const { return UniValue(UniValue::VOBJ); }
 
     UniValue operator()(const CKeyID &keyID) const {
@@ -154,9 +155,9 @@ public:
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", 0);
         obj.pushKV("witness_program", HexStr(id.begin(), id.end()));
-        //if (pwallet && pwallet->GetPubKey(CKeyID(id), pubkey)) {
-        //obj.pushKV("pubkey", HexStr(pubkey));
-        //}
+        if (pwalletMain && pwalletMain->GetPubKey(CKeyID(id), pubkey)) {
+            obj.pushKV("pubkey", HexStr(pubkey));
+        }
         return obj;
     }
 
@@ -171,9 +172,20 @@ public:
         CRIPEMD160 hasher;
         uint160 hash;
         hasher.Write(id.begin(), 32).Finalize(hash.begin());
-        //if (pwallet && pwallet->GetCScript(CScriptID(hash), subscript)) {
-        //ProcessSubScript(subscript, obj);
-        //}
+        if (pwalletMain && pwalletMain->GetCScript(CScriptID(hash), subscript)) {
+            std::vector<CTxDestination> addresses;
+            txnouttype whichType;
+            int nRequired;
+            ExtractDestinations(subscript, whichType, addresses, nRequired);
+            obj.push_back(Pair("script", GetTxnOutputType(whichType)));
+            obj.push_back(Pair("hex", HexStr(subscript.begin(), subscript.end())));
+            UniValue a(UniValue::VARR);
+            BOOST_FOREACH(const CTxDestination& addr, addresses)
+                a.push_back(CBitcoinAddress(addr).ToString());
+            obj.push_back(Pair("addresses", a));
+            if (whichType == TX_MULTISIG)
+                obj.push_back(Pair("sigsrequired", nRequired));
+        }
         return obj;
     }
 
