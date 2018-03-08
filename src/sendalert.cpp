@@ -88,7 +88,7 @@ void ThreadSendAlert()
     //  4000 or higher will put the RPC into safe mode
     alert.nPriority     = 1500;
     alert.strComment    = "";
-    alert.strStatusBar  = "Your client is out of date and vulnerable to denial of service. Please update to the most recent version of Zcash (1.0.8-1 or later). More info at: https://z.cash/support/security/";
+    alert.strStatusBar  = "Your client is out of date and vulnerable to denial of service. Please update to the most recent version of Bitcoin Private. More info at: https://btcprivate.org/";
     alert.strRPCError   = alert.strStatusBar;
 
     // Set specific client version/versions here. If setSubVer is empty, no filtering on subver is done:
