@@ -21,17 +21,17 @@
 using namespace std;
 using namespace libzcash;
 
-static const string strSecret1     ("5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj");
-static const string strSecret2     ("5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3");
-static const string strSecret1C    ("Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw");
-static const string strSecret2C    ("L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g");
-static const CBitcoinAddress addr1 ("t1h8SqgtM3QM5e2M8EzhhT1yL2PXXtA6oqe");
-static const CBitcoinAddress addr2 ("t1Xxa5ZVPKvs9bGMn7aWTiHjyHvR31XkUst");
-static const CBitcoinAddress addr1C("t1ffus9J1vhxvFqLoExGBRPjE7BcJxiSCTC");
-static const CBitcoinAddress addr2C("t1VJL2dPUyXK7avDRGqhqQA5bw2eEMdhyg6");
+static const string strSecret1     ("5JiYtg64HpmMvtm7LWZkWbpxHjWKrX2suX1am8EfUZRbd5n5JEr");
+static const string strSecret2     ("5JvM4pertXFKRegPRYuQr13kZhquXS3rQZ73cyXEbaBwWpQ5GA7");
+static const string strSecret1C    ("L1CPm5XKXFpoNsTgy7VZ3eif2rcSDZZHgoTa1kwJpe7ZowP2uCSq");
+static const string strSecret2C    ("L26TZsL7CQWCKoJqyMpLFHD9HMGrqKZb4xhgZnUT1bVHcNmB1hnj");
+static const CBitcoinAddress addr1 ("b1J2iKuk2nZSWcmg1tUaP6aUm4BhPRXMkZv");
+static const CBitcoinAddress addr2 ("b1SmbaKFGd9AkKK381dPZg5BZu2mXeRqgoT");
+static const CBitcoinAddress addr1C("b15DnbT53vnVLYDYJEoZVCVVgM2wF87unbZ");
+static const CBitcoinAddress addr2C("b1QFRpWbk23VCeS6pPeKmfratC3pkngL3uD");
 
 
-static const string strAddressBad("t1aMkLwU1LcMZYN7TgXUJAwzA1r44dbLkSp");
+static const string strAddressBad("b1aMkLwU1LcMZYN7TgXUJAwzA1r44dbLkSp");
 
 
 #ifdef KEY_TESTS_DUMPINFO
