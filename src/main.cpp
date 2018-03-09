@@ -2170,6 +2170,10 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex) {
     if(isForkEnabled(pindex->nHeight))
         flags |= SCRIPT_VERIFY_FORKID;
 
+    if(pindex->nHeight > 284000) {
+        flags |= SCRIPT_VERIFY_WITNESS;
+        //flags |= SCRIPT_VERIFY_NULLDUMMY;
+    }
     return flags;
 };
 
