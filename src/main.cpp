@@ -2167,13 +2167,11 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex) {
     AssertLockHeld(cs_main);
 
     unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
-    if(isForkEnabled(pindex->nHeight))
+    if(isForkEnabled(pindex->nHeight)) {
         flags |= SCRIPT_VERIFY_FORKID;
-
-    if(pindex->nHeight > 284000) {
         flags |= SCRIPT_VERIFY_WITNESS;
-        //flags |= SCRIPT_VERIFY_NULLDUMMY;
     }
+
     return flags;
 };
 
