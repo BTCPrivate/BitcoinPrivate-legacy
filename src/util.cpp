@@ -891,7 +891,7 @@ void SetThreadPriority(int nPriority)
 std::string PrivacyInfo()
 {
     return "\n" +
-           FormatParagraph(strprintf(_("To ensure you are fully protecting your privacy when running BTCP, see <%s>."),
+           FormatParagraph(strprintf(_("To ensure you are fully protecting your privacy when running BTCP: <%s>."),
                                      "doc/security-warnings.md")) + "\n";
 }
 
