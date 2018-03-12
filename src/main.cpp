@@ -2303,8 +2303,10 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex) {
     AssertLockHeld(cs_main);
 
     unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
-    if(isForkEnabled(pindex->nHeight))
+    if(isForkEnabled(pindex->nHeight)) {
         flags |= SCRIPT_VERIFY_FORKID;
+        flags |= SCRIPT_VERIFY_WITNESS;
+    }
 
     return flags;
 };
@@ -2909,9 +2911,6 @@ bool static ConnectTip(CValidationState &state, CBlockIndex *pindexNew, CBlock *
     mempool.check(pcoinsTip);
     // Update chainActive & related variables.
     UpdateTip(pindexNew);
-    LogPrintf("NEWTIP %s %d %d %s %s\n",
-              hashPid.ToString(), pindexNew->nHeight, GetTime(),
-              pblock->vtx[0].vin[0].scriptSig.ToString(), pblock->GetHash().ToString());
 
     // Tell wallet about transactions that went from mempool
     // to conflicted:
@@ -3590,11 +3589,7 @@ bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, CBloc
     return true;
 }
 
-bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, bool fRequested, CDiskBlockPos* dbp
-#ifdef FORK_CB_INPUT
-        , bool fCalledFromMiner
-#endif
-    )
+bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, bool fRequested, CDiskBlockPos* dbp)
 {
     const CChainParams& chainparams = Params();
     AssertLockHeld(cs_main);
@@ -3635,11 +3630,19 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
         return false;
     }
 
-    int nHeight = pindex->nHeight;
+    bool fExpensiveChecks = true;
+    if (fCheckpointsEnabled) {
+        CBlockIndex *pindexLastCheckpoint = Checkpoints::GetLastCheckpoint(chainparams.Checkpoints());
+        if (pindexLastCheckpoint && pindexLastCheckpoint->GetAncestor(pindex->nHeight) == pindex) {
+            // This block is an ancestor of a checkpoint: disable script checks
+            fExpensiveChecks = false;
+        }
+    }
 
-#ifdef FORK_CB_INPUT
-    if (isForkBlock(nHeight)) { //if block is in forking region validate it agains file records
-        if (!fCalledFromMiner && !forkUtxoPath.empty()) {
+    int nHeight = pindex->nHeight;
+    if (fExpensiveChecks && isForkBlock(nHeight)) {
+        //if block is in forking region validate it agains file records
+        if (!forkUtxoPath.empty()) {
 
             std::string utxo_file_path = GetUTXOFileName(nHeight);
             std::ifstream if_utxo(utxo_file_path, std::ios::binary | std::ios::in);
@@ -3727,7 +3730,6 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
             }
         }
     }
-#endif
 
     // Write block to history file
     try {
@@ -3765,11 +3767,7 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned 
 }
 
 
-bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool fForceProcessing, CDiskBlockPos *dbp
-#ifdef FORK_CB_INPUT
-                , bool fCalledFromMiner
-#endif
-)
+bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool fForceProcessing, CDiskBlockPos *dbp)
 {
     // Preliminary checks
     auto verifier = libzcash::ProofVerifier::Disabled();
@@ -3785,11 +3783,7 @@ bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool
 
         // Store to disk
         CBlockIndex *pindex = NULL;
-        bool ret = AcceptBlock(*pblock, state, &pindex, fRequested, dbp
-#ifdef FORK_CB_INPUT
-        , fCalledFromMiner
-#endif
-        );
+        bool ret = AcceptBlock(*pblock, state, &pindex, fRequested, dbp);
         if (pindex && pfrom) {
             mapBlockSource[pindex->GetBlockHash()] = pfrom->GetId();
         }
