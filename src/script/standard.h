@@ -39,7 +39,8 @@ extern unsigned nMaxDatacarrierBytes;
 
 static const unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS = SCRIPT_VERIFY_P2SH |
     SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY |
-    SCRIPT_VERIFY_FORKID;
+    SCRIPT_VERIFY_FORKID |
+    SCRIPT_VERIFY_WITNESS;
 
 /**
  * Standard script verification flags that standard transactions will comply
