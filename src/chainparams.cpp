@@ -297,6 +297,9 @@ public:
             0,
             0
         };
+
+        nForkStartHeight = 0;
+        nForkHeightRange = 0;
     }
 };
 static CRegTestParams regTestParams;
