@@ -13,6 +13,7 @@ namespace Consensus {
 enum DeploymentPos
 {
     DEPLOYMENT_TESTDUMMY,
+    DEPLOYMENT_CSV,
     MAX_VERSION_BITS_DEPLOYMENTS
 };
 
