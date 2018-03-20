@@ -1,3 +1,4 @@
+
 // Copyright (c) 2012-2013 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -21,14 +22,14 @@
 using namespace std;
 using namespace libzcash;
 
-static const string strSecret1     ("5JiYtg64HpmMvtm7LWZkWbpxHjWKrX2suX1am8EfUZRbd5n5JEr");
-static const string strSecret2     ("5JvM4pertXFKRegPRYuQr13kZhquXS3rQZ73cyXEbaBwWpQ5GA7");
-static const string strSecret1C    ("L1CPm5XKXFpoNsTgy7VZ3eif2rcSDZZHgoTa1kwJpe7ZowP2uCSq");
-static const string strSecret2C    ("L26TZsL7CQWCKoJqyMpLFHD9HMGrqKZb4xhgZnUT1bVHcNmB1hnj");
-static const CBitcoinAddress addr1 ("b1J2iKuk2nZSWcmg1tUaP6aUm4BhPRXMkZv");
-static const CBitcoinAddress addr2 ("b1SmbaKFGd9AkKK381dPZg5BZu2mXeRqgoT");
-static const CBitcoinAddress addr1C("b15DnbT53vnVLYDYJEoZVCVVgM2wF87unbZ");
-static const CBitcoinAddress addr2C("b1QFRpWbk23VCeS6pPeKmfratC3pkngL3uD");
+static const string strSecret1     ("5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj");
+static const string strSecret2     ("5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3");
+static const string strSecret1C    ("Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw");
+static const string strSecret2C    ("L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g");
+static const CBitcoinAddress addr1 ("b1Tj3WYKCpEbbAfcoFiKYuhr6Q13XPYPi4m");
+static const CBitcoinAddress addr2 ("b1JZAkQvF6m7f7udT8J8KAycjfXw2XkD711");
+static const CBitcoinAddress addr1C("b1SGWXzishYDRnUcUFft2t5bzUo8JTT4QBJ");
+static const CBitcoinAddress addr2C("b1FtvhUpLkMZd7ZV6HZKgrqxNJeADpLUvQA");
 
 
 static const string strAddressBad("b1aMkLwU1LcMZYN7TgXUJAwzA1r44dbLkSp");

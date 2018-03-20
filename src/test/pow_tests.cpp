@@ -27,20 +27,6 @@ BOOST_AUTO_TEST_CASE(get_next_work)
                       CalculateNextWorkRequired(bnAvg, nThisTime, nLastRetargetTime, params, UintToArith256(params.powLimit)));
 }
 
-/* Test the constraint on the upper bound for next work */
-BOOST_AUTO_TEST_CASE(get_next_work_pow_limit)
-{
-    SelectParams(CBaseChainParams::MAIN);
-    const Consensus::Params& params = Params().GetConsensus();
-
-    int64_t nLastRetargetTime = 1231006505; // Block #0 of Bitcoin
-    int64_t nThisTime = 1233061996;  // Block #2015 of Bitcoin
-    arith_uint256 bnAvg;
-    bnAvg.SetCompact(0x1f07ffff);
-    BOOST_CHECK_EQUAL(0x1f07ffff,
-                      CalculateNextWorkRequired(bnAvg, nThisTime, nLastRetargetTime, params, UintToArith256(params.powLimit)));
-}
-
 /* Test the constraint on the lower bound for actual time taken */
 BOOST_AUTO_TEST_CASE(get_next_work_lower_limit_actual)
 {
