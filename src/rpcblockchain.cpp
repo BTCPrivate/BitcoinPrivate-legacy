@@ -43,7 +43,7 @@ double GetDifficultyINTERNAL(const CBlockIndex* blockindex, bool networkDifficul
 
 	// instead of using powLimit, network difficulty is calculated using a legacy powLimit value to maintain comparability with the network difficulty of other Equihash-based coins for mining profitability calculations.
     uint32_t powLimitLegacy =
-        UintToArith256(uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")).GetCompact();
+        UintToArith256(Params().GetConsensus().prePowLimit).GetCompact();
     int nShift = (bits >> 24) & 0xff;
     int nShiftAmount = (powLimitLegacy >> 24) & 0xff;
 
@@ -64,7 +64,7 @@ double GetDifficultyINTERNAL(const CBlockIndex* blockindex, bool networkDifficul
 
 	// for compatibility purposes, the floor of 1.0 is maintained.
 	if (dDiff < 1) dDiff = 1.0;
-	
+
     return dDiff;
 }
 
