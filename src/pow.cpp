@@ -27,7 +27,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 
     arith_uint256 proofOfWorkLimit;
     if(!isForkEnabled(nHeight))
-        proofOfWorkLimit = UintToArith256(uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+        proofOfWorkLimit = UintToArith256(params.prePowLimit);
     else
         proofOfWorkLimit = UintToArith256(params.powLimit);
 

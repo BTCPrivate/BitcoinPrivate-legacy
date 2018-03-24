@@ -71,6 +71,7 @@ struct Params {
 
     /** Proof of work parameters */
     uint256 powLimit;
+    uint256 prePowLimit;
     bool fPowAllowMinDifficultyBlocks;
     int64_t nPowAveragingWindow;
     int64_t nPowMaxAdjustDown;
