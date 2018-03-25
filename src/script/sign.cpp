@@ -257,11 +257,13 @@ static CScript CombineSignatures(const CScript& scriptPubKey, const BaseSignatur
         return PushAll(sigs2);
     case TX_PUBKEY:
     case TX_PUBKEYHASH:
+    case TX_WITNESS_V0_KEYHASH:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
         return PushAll(sigs1);
     case TX_SCRIPTHASH:
+    case TX_WITNESS_V0_SCRIPTHASH:
         if (sigs1.empty() || sigs1.back().empty())
             return PushAll(sigs2);
         else if (sigs2.empty() || sigs2.back().empty())
