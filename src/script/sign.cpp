@@ -91,8 +91,7 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
         keyID = CKeyID(uint160(vSolutions[0]));
 
         bool isSigned;
-        if(whichTypeRet == TX_WITNESS_V0_KEYHASH)
-        {
+        if (whichTypeRet == TX_WITNESS_V0_KEYHASH) {
             CScript pkh;
             pkh << OP_DUP << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
             isSigned = Sign1(keyID, creator, pkh, scriptSigRet);
@@ -100,7 +99,7 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
             isSigned = Sign1(keyID, creator, scriptPubKey, scriptSigRet);
         }
 
-        if(!isSigned)
+        if (!isSigned)
             return false;
         else
         {
@@ -115,8 +114,7 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
         scriptSigRet << OP_0; // workaround CHECKMULTISIG bug
         return (SignN(vSolutions, creator, scriptPubKey, scriptSigRet));
 
-    case TX_WITNESS_V0_SCRIPTHASH:
-    {
+    case TX_WITNESS_V0_SCRIPTHASH: {
         uint160 h160;
         CRIPEMD160().Write(&vSolutions[0][0], vSolutions[0].size()).Finalize(h160.begin());
         return creator.KeyStore().GetCScript(h160, scriptSigRet);
@@ -133,8 +131,7 @@ bool ProduceSignature(const BaseSignatureCreator& creator, const CScript& fromPu
     bool P2SH = false;
 
     CScript subscript;
-    if (solved && whichType == TX_SCRIPTHASH)
-    {
+    if (solved && whichType == TX_SCRIPTHASH) {
         // Solver returns the subscript that needs to be evaluated;
         // the final scriptSig is the signatures from that
         // and then the serialized subscript:
@@ -143,8 +140,7 @@ bool ProduceSignature(const BaseSignatureCreator& creator, const CScript& fromPu
         P2SH = true;
     }
 
-    if (solved && whichType == TX_WITNESS_V0_SCRIPTHASH)
-    {
+    if (solved && whichType == TX_WITNESS_V0_SCRIPTHASH) {
         CScript witnessscript = scriptSig;
         txnouttype subType;
         solved = solved && SignStep(creator, witnessscript, scriptSig, subType) && subType != TX_SCRIPTHASH && subType != TX_WITNESS_V0_SCRIPTHASH && subType != TX_WITNESS_V0_KEYHASH;

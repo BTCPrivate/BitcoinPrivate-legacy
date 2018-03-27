@@ -80,8 +80,7 @@ enum WalletFeature
     FEATURE_LATEST = 60000
 };
 
-enum OutputType : int
-{
+enum OutputType : int {
     OUTPUT_TYPE_NONE,
     OUTPUT_TYPE_P2PKH,
     OUTPUT_TYPE_P2SH_SEGWIT,
@@ -331,8 +330,12 @@ public:
     }
 
     int SetMerkleBranch(const CBlock& block);
-    int GetHeightInMainChain(const CBlockIndex* &pindexRet) const;
-    int GetHeightInMainChain() const { const CBlockIndex *pindexRet; return GetHeightInMainChain(pindexRet); }
+    int GetHeightInMainChain(const CBlockIndex*& pindexRet) const;
+    int GetHeightInMainChain() const
+    {
+        const CBlockIndex* pindexRet;
+        return GetHeightInMainChain(pindexRet);
+    }
 
     /**
      * Return depth of transaction in blockchain:
@@ -584,7 +587,6 @@ public:
         READWRITE(LIMITED_STRING(strComment, 65536));
     }
 };
-
 
 
 /**
@@ -1127,7 +1129,6 @@ public:
         READWRITE(vchPubKey);
     }
 };
-
 
 
 /**

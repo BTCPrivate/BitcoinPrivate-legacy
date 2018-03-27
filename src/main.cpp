@@ -796,7 +796,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 
         if (whichType == TX_SCRIPTHASH)
         {
-            std::vector<std::vector<unsigned char> > stack;
+            std::vector<std::vector<unsigned char>> stack;
             // convert the scriptSig into a stack, so we can inspect the redeemScript
             if (!EvalScript(stack, tx.vin[i].scriptSig, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), 0))
                 return false;
@@ -805,7 +805,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
                 return false;
 
             CScript subscript(stack.back().begin(), stack.back().end());
-            if(subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS)
+            if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS)
                 return false;
         }
     }

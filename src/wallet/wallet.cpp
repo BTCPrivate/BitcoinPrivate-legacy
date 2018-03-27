@@ -3573,7 +3573,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock& block)
     return chainActive.Height() - pindex->nHeight + 1;
 }
 
-int CMerkleTx::GetHeightInMainChain(const CBlockIndex* &pindexRet) const
+int CMerkleTx::GetHeightInMainChain(const CBlockIndex*& pindexRet) const
 {
     if (hashBlock.IsNull() || nIndex == -1)
         return 0;
@@ -3599,7 +3599,7 @@ int CMerkleTx::GetHeightInMainChain(const CBlockIndex* &pindexRet) const
     return pindex->nHeight;
 }
 
-int CMerkleTx::GetDepthInMainChainINTERNAL(const CBlockIndex* &pindexRet) const
+int CMerkleTx::GetDepthInMainChainINTERNAL(const CBlockIndex*& pindexRet) const
 {
     AssertLockHeld(cs_main);
 
@@ -3729,10 +3729,12 @@ void CWallet::LearnAllRelatedScripts(const CPubKey& key)
 CTxDestination GetDestinationForKey(const CPubKey& key, OutputType type)
 {
     switch (type) {
-    case OUTPUT_TYPE_P2PKH: return key.GetID();
+    case OUTPUT_TYPE_P2PKH:
+        return key.GetID();
     case OUTPUT_TYPE_P2SH_SEGWIT:
     case OUTPUT_TYPE_BECH32: {
-        if (!key.IsCompressed()) return key.GetID();
+        if (!key.IsCompressed())
+            return key.GetID();
         CTxDestination witdest = WitnessV0KeyHash(key.GetID());
         CScript witprog = GetScriptForDestination(witdest);
         if (type == OUTPUT_TYPE_P2SH_SEGWIT) {
@@ -3741,7 +3743,8 @@ CTxDestination GetDestinationForKey(const CPubKey& key, OutputType type)
             return witdest;
         }
     }
-    default: assert(false);
+    default:
+        assert(false);
     }
 }
 
@@ -3770,7 +3773,8 @@ CTxDestination CWallet::AddAndGetDestinationForScript(const CScript& script, Out
         CTxDestination witdest = hash;
         CScript witprog = GetScriptForDestination(witdest);
         // Check if the resulting program is solvable (i.e. doesn't use an uncompressed key)
-        if (!IsSolvable(*this, witprog)) return CScriptID(script);
+        if (!IsSolvable(*this, witprog))
+            return CScriptID(script);
         // Add the redeemscript, so that P2WSH and P2SH-P2WSH outputs are recognized as ours.
         AddCScript(witprog);
         if (type == OUTPUT_TYPE_BECH32) {
@@ -3779,6 +3783,7 @@ CTxDestination CWallet::AddAndGetDestinationForScript(const CScript& script, Out
             return CScriptID(witprog);
         }
     }
-    default: assert(false);
+    default:
+        assert(false);
     }
 }

@@ -72,8 +72,7 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
         }
         break;
     }
-    case TX_WITNESS_V0_SCRIPTHASH:
-    {
+    case TX_WITNESS_V0_SCRIPTHASH: {
         uint160 hash;
         CRIPEMD160().Write(&vSolutions[0][0], vSolutions[0].size()).Finalize(hash.begin());
         CScriptID scriptID = CScriptID(hash);

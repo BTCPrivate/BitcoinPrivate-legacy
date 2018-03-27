@@ -236,13 +236,13 @@ bool CBitcoinAddress::Set(const CScriptID& id)
     return true;
 }
 
-bool CBitcoinAddress::Set(const WitnessV0KeyHash &w)
+bool CBitcoinAddress::Set(const WitnessV0KeyHash& w)
 {
     SetData(Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS), &w, 20);
     return true;
 }
 
-bool CBitcoinAddress::Set(const WitnessV0ScriptHash &w)
+bool CBitcoinAddress::Set(const WitnessV0ScriptHash& w)
 {
     uint160 h160;
     CRIPEMD160().Write(w.begin(), w.size()).Finalize(h160.begin());
