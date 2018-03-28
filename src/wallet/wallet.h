@@ -321,7 +321,7 @@ public:
     }
 
     int SetMerkleBranch(const CBlock& block);
-
+    int GetHeightInMainChain() const;
 
     /**
      * Return depth of transaction in blockchain:
@@ -336,7 +336,7 @@ public:
     bool AcceptToMemoryPool(bool fLimitFree=true, bool fRejectAbsurdFee=true);
 };
 
-/** 
+/**
  * A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -576,7 +576,7 @@ public:
 
 
 
-/** 
+/**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
@@ -879,7 +879,7 @@ public:
     //! Adds an encrypted spending key to the store, and saves it to disk (virtual method, declared in crypter.h)
     bool AddCryptedSpendingKey(const libzcash::PaymentAddress &address, const libzcash::ViewingKey &vk, const std::vector<unsigned char> &vchCryptedSecret);
 
-    /** 
+    /**
      * Increment the next transaction order id
      * @return next transaction order id
      */
@@ -1011,8 +1011,8 @@ public:
 
     //! Verify the wallet database and perform salvage if required
     static bool Verify(const std::string& walletFile, std::string& warningString, std::string& errorString);
-    
-    /** 
+
+    /**
      * Address book entry changed.
      * @note called with lock cs_wallet held.
      */
@@ -1021,7 +1021,7 @@ public:
             const std::string &purpose,
             ChangeType status)> NotifyAddressBookChanged;
 
-    /** 
+    /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.
      */
@@ -1038,10 +1038,10 @@ public:
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
     /** Set whether this wallet broadcasts transactions. */
     void SetBroadcastTransactions(bool broadcast) { fBroadcastTransactions = broadcast; }
-    
+
     /* Find notes filtered by payment address, min depth, ability to spend */
     void GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries, std::string address, int minDepth=1, bool ignoreSpent=true);
-    
+
 };
 
 /** A key allocated from the key pool. */
@@ -1069,7 +1069,7 @@ public:
 };
 
 
-/** 
+/**
  * Account information.
  * Stored in wallet with key "acc"+string account name.
  */
@@ -1100,7 +1100,7 @@ public:
 
 
 
-/** 
+/**
  * Internal transfers.
  * Database key is acentry<account><counter>.
  */

@@ -2205,7 +2205,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             if (fOnlyConfirmed && !pcoin->IsTrusted())
                 continue;
 
-            if (pcoin->IsCoinBase() && !fIncludeCoinBase)
+            if (pcoin->IsCoinBase() && !isForkBlock(pcoin->GetHeightInMainChain()) && !fIncludeCoinBase)
                 continue;
 
             if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
@@ -3573,7 +3573,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock& block)
     return chainActive.Height() - pindex->nHeight + 1;
 }
 
-int CMerkleTx::GetDepthInMainChainINTERNAL(const CBlockIndex* &pindexRet) const
+int CMerkleTx::GetHeightInMainChain(const CBlockIndex* &pindexRet) const
 {
     if (hashBlock.IsNull() || nIndex == -1)
         return 0;
@@ -3596,7 +3596,18 @@ int CMerkleTx::GetDepthInMainChainINTERNAL(const CBlockIndex* &pindexRet) const
     }
 
     pindexRet = pindex;
-    return chainActive.Height() - pindex->nHeight + 1;
+    return pindex->nHeight;
+}
+
+int CMerkleTx::GetDepthInMainChainINTERNAL(const CBlockIndex* &pindexRet) const
+{
+    AssertLockHeld(cs_main);
+
+    int height = GetHeightInMainChain(pindexRet);
+    if (height == 0)
+        return 0;
+
+    return chainActive.Height() - height + 1;
 }
 
 int CMerkleTx::GetDepthInMainChain(const CBlockIndex* &pindexRet) const
