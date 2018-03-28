@@ -321,7 +321,8 @@ public:
     }
 
     int SetMerkleBranch(const CBlock& block);
-    int GetHeightInMainChain() const;
+    int GetHeightInMainChain(const CBlockIndex* &pindexRet) const;
+    int GetHeightInMainChain() const { const CBlockIndex *pindexRet; return GetHeightInMainChain(pindexRet); }
 
     /**
      * Return depth of transaction in blockchain:
