@@ -3573,7 +3573,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock& block)
     return chainActive.Height() - pindex->nHeight + 1;
 }
 
-int CMerkleTx::GetHeightInMainChain(const CBlockIndex*& pindexRet) const
+int CMerkleTx::GetHeightInMainChain(const CBlockIndex* &pindexRet) const
 {
     if (hashBlock.IsNull() || nIndex == -1)
         return 0;
@@ -3599,7 +3599,7 @@ int CMerkleTx::GetHeightInMainChain(const CBlockIndex*& pindexRet) const
     return pindex->nHeight;
 }
 
-int CMerkleTx::GetDepthInMainChainINTERNAL(const CBlockIndex*& pindexRet) const
+int CMerkleTx::GetDepthInMainChainINTERNAL(const CBlockIndex* &pindexRet) const
 {
     AssertLockHeld(cs_main);
 
