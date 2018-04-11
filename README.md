@@ -1,17 +1,13 @@
 Bitcoin Private
 ----------------
 
-**Bitcoin Private v1.0.10-1**
+**Bitcoin Private v1.0.11**
 
 P2P Port: 7933
 
 RPC Port: 7932
 
-Bitcoin Private is a fork of Zclassic, merging in the UTXO set of Bitcoin. BTCP is financial freedom.
-
-### Info
-
-The snapshot will take place on February 28th. The fork (creation of BTCP) will occur shortly after, on March 2nd.
+Bitcoin Private is a fork of Zclassic, merging in a snapshotted UTXO set of Bitcoin. BTCP is financial freedom.
 
 Build
 -----------------
