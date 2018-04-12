@@ -81,13 +81,25 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
     {
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
+    case TX_WITNESS_UNKNOWN:
         return false;
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
         return Sign1(keyID, creator, scriptPubKey, scriptSigRet);
+    case TX_WITNESS_V0_KEYHASH:
     case TX_PUBKEYHASH:
         keyID = CKeyID(uint160(vSolutions[0]));
-        if (!Sign1(keyID, creator, scriptPubKey, scriptSigRet))
+
+        bool isSigned;
+        if (whichTypeRet == TX_WITNESS_V0_KEYHASH) {
+            CScript pkh;
+            pkh << OP_DUP << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
+            isSigned = Sign1(keyID, creator, pkh, scriptSigRet);
+        } else {
+            isSigned = Sign1(keyID, creator, scriptPubKey, scriptSigRet);
+        }
+
+        if (!isSigned)
             return false;
         else
         {
@@ -101,33 +113,46 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
     case TX_MULTISIG:
         scriptSigRet << OP_0; // workaround CHECKMULTISIG bug
         return (SignN(vSolutions, creator, scriptPubKey, scriptSigRet));
+
+    case TX_WITNESS_V0_SCRIPTHASH: {
+        uint160 h160;
+        CRIPEMD160().Write(&vSolutions[0][0], vSolutions[0].size()).Finalize(h160.begin());
+        return creator.KeyStore().GetCScript(h160, scriptSigRet);
     }
-    return false;
+    default:
+        return false;
+    }
 }
 
 bool ProduceSignature(const BaseSignatureCreator& creator, const CScript& fromPubKey, CScript& scriptSig)
 {
     txnouttype whichType;
-    if (!SignStep(creator, fromPubKey, scriptSig, whichType))
-        return false;
+    bool solved = SignStep(creator, fromPubKey, scriptSig, whichType);
+    bool P2SH = false;
 
-    if (whichType == TX_SCRIPTHASH)
-    {
-        // Solver returns the subscript that need to be evaluated;
+    CScript subscript;
+    if (solved && whichType == TX_SCRIPTHASH) {
+        // Solver returns the subscript that needs to be evaluated;
         // the final scriptSig is the signatures from that
         // and then the serialized subscript:
-        CScript subscript = scriptSig;
+        subscript = scriptSig;
+        solved = solved && SignStep(creator, subscript, scriptSig, whichType) && whichType != TX_SCRIPTHASH;
+        P2SH = true;
+    }
 
+    if (solved && whichType == TX_WITNESS_V0_SCRIPTHASH) {
+        CScript witnessscript = scriptSig;
         txnouttype subType;
-        bool fSolved =
-            SignStep(creator, subscript, scriptSig, subType) && subType != TX_SCRIPTHASH;
-        // Append serialized subscript whether or not it is completely signed:
+        solved = solved && SignStep(creator, witnessscript, scriptSig, subType) && subType != TX_SCRIPTHASH && subType != TX_WITNESS_V0_SCRIPTHASH && subType != TX_WITNESS_V0_KEYHASH;
+        scriptSig << static_cast<valtype>(witnessscript);
+    }
+
+    if (P2SH) {
         scriptSig << static_cast<valtype>(subscript);
-        if (!fSolved) return false;
     }
 
     // Test solution
-    return VerifyScript(scriptSig, fromPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, creator.Checker());
+    return solved && VerifyScript(scriptSig, fromPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, creator.Checker());
 }
 
 bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, int nHashType)
@@ -228,11 +253,13 @@ static CScript CombineSignatures(const CScript& scriptPubKey, const BaseSignatur
         return PushAll(sigs2);
     case TX_PUBKEY:
     case TX_PUBKEYHASH:
+    case TX_WITNESS_V0_KEYHASH:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
         return PushAll(sigs1);
     case TX_SCRIPTHASH:
+    case TX_WITNESS_V0_SCRIPTHASH:
         if (sigs1.empty() || sigs1.back().empty())
             return PushAll(sigs2);
         else if (sigs2.empty() || sigs2.back().empty())
@@ -315,4 +342,23 @@ bool DummySignatureCreator::CreateSig(std::vector<unsigned char>& vchSig, const 
     vchSig[6 + 33] = 0x01;
     vchSig[6 + 33 + 32] = SIGHASH_ALL | SIGHASH_FORKID;
     return true;
+}
+
+bool IsSolvable(const CKeyStore& store, const CScript& script)
+{
+    // This check is to make sure that the script we created can actually be solved for and signed by us
+    // if we were to have the private keys. This is just to make sure that the script is valid and that,
+    // if found in a transaction, we would still accept and relay that transaction. In particular,
+    // it will reject witness outputs that require signing with an uncompressed public key.
+    DummySignatureCreator creator(&store);
+    CScript sigs;
+    // Make sure that STANDARD_SCRIPT_VERIFY_FLAGS includes SCRIPT_VERIFY_WITNESS_PUBKEYTYPE, the most
+    // important property this function is designed to test for.
+    static_assert(STANDARD_SCRIPT_VERIFY_FLAGS & SCRIPT_VERIFY_WITNESS_PUBKEYTYPE, "IsSolvable requires standard script flags to include WITNESS_PUBKEYTYPE");
+    if (ProduceSignature(creator, script, sigs)) {
+        // VerifyScript check is just defensive, and should never fail.
+        assert(VerifyScript(sigs, script, STANDARD_SCRIPT_VERIFY_FLAGS, creator.Checker()));
+        return true;
+    }
+    return false;
 }

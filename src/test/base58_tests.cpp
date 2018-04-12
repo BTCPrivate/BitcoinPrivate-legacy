@@ -118,6 +118,16 @@ public:
     {
         return exp_payload.size() == 0;
     }
+    bool operator()(const WitnessV0KeyHash& id) const
+    {
+        uint160 exp_key(exp_payload);
+        return exp_key == id;
+    }
+    bool operator()(const WitnessV0ScriptHash& id) const
+    {
+        uint256 exp_key(exp_payload);
+        return exp_key == id;
+    }
 
     template<typename X>
     bool operator()(const X &none) { return false; }
