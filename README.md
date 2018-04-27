@@ -1,7 +1,7 @@
 Bitcoin Private
 ----------------
 
-**Bitcoin Private v1.0.12**
+**Bitcoin Private v1.0.13**
 
 P2P Port: 7933
 
@@ -44,7 +44,7 @@ Add following lines to `btcprivate.conf` and be sure to change the rpcpassword:
 rpcuser=btcprivaterpc
 rpcpassword=set-a-password
 rpcallowip=127.0.0.1
-#addnode=dnsseed.btcprivate.org
+#addnode=dnsseed.btcprivate.co
 ```
 
 
