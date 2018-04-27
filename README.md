@@ -1,7 +1,7 @@
 Bitcoin Private
 ----------------
 
-**Bitcoin Private v1.0.11**
+**Bitcoin Private v1.0.12**
 
 P2P Port: 7933
 
@@ -44,7 +44,7 @@ Add following lines to `btcprivate.conf` and be sure to change the rpcpassword:
 rpcuser=btcprivaterpc
 rpcpassword=set-a-password
 rpcallowip=127.0.0.1
-addnode=dnsseed.btcprivate.org
+#addnode=dnsseed.btcprivate.org
 ```
 
 
@@ -71,8 +71,7 @@ sudo apt-get install \
       zlib1g-dev wget bsdmainutils automake make cmake mingw-w64
 ```
 
-2. Set the default ming32 gcc/g++ compiler option to posix, fix problem with packages in Xenial
-
+2. Set the default mingw32 gcc/g++ compiler option to posix, fix problem with packages in Xenial
 ```{r, engine='bash'}
 sudo apt install software-properties-common
 sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu zesty universe"
@@ -123,7 +122,7 @@ sudo make install DESTDIR=/mnt/c/btcp/BTCPrivate
 ### Mac
 Get dependencies:
 ```{r, engine='bash'}
-#install xcode
+# Install xcode
 xcode-select --install
 
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
