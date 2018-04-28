@@ -105,7 +105,8 @@ public:
         vSeeds.clear();
         // TODO: setup a DNSSeed
         vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.btcprivate.org"));
-
+        vSeeds.push_back(CDNSSeedData("btcprivate.co", "dnsseed.btcprivate.co"));
+        
         // guarantees the first 2 characters, when base58 encoded, are "b1"
         base58Prefixes[PUBKEY_ADDRESS]     = {0x13,0x25};
         // guarantees the first 2 characters, when base58 encoded, are "bx"
@@ -200,7 +201,8 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.testnet1.btcprivate.org"));
+        vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.testnet.btcprivate.org"));
+        vSeeds.push_back(CDNSSeedData("btcprivate.co", "dnsseed.testnet1.btcprivate.co"));
 
         // guarantees the first 2 characters, when base58 encoded, are "n1"
         base58Prefixes[PUBKEY_ADDRESS]     = {0x19,0x57};
