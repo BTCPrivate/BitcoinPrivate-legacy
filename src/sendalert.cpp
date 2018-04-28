@@ -78,7 +78,7 @@ void ThreadSendAlert()
     // These versions are protocol versions
     // 170002 : 1.0.0
     alert.nMinVer       = 180003;
-    alert.nMaxVer       = 180003;
+    alert.nMaxVer       = 180004;
 
     //
     // main.cpp:
@@ -103,6 +103,11 @@ void ThreadSendAlert()
         alert.setSubVer.insert(std::string("/"+useragent+":1.0.7/"));
         alert.setSubVer.insert(std::string("/"+useragent+":1.0.7-1/"));
         alert.setSubVer.insert(std::string("/"+useragent+":1.0.8/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.10-1/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.10-2/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.11/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.12/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.12-1/"));
     }
 
     // Sanity check
