@@ -1,4 +1,5 @@
 // Copyright (c) 2016 The Zcash developers
+// Copyright (c) 2018 The Bitcoin Private developers
 // Original code from: https://gist.github.com/laanwj/0e689cfa37b52bcbbb44
 
 /*
@@ -77,7 +78,7 @@ void ThreadSendAlert()
 
     // These versions are protocol versions
     // 170002 : 1.0.0
-    alert.nMinVer       = 180003;
+    alert.nMinVer       = 170002;
     alert.nMaxVer       = 180004;
 
     //
