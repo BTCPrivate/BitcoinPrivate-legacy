@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2016-2017 The Zcash developers
+// Copyright (c) 2018 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -692,8 +694,8 @@ void static BitcoinMiner()
     // Each thread has its own counter
     unsigned int nExtraNonce = 0;
 
-    unsigned int n = chainparams.EquihashN();
-    unsigned int k = chainparams.EquihashK();
+    unsigned int n;
+    unsigned int k;
 
     std::string solver = GetArg("-equihashsolver", "default");
     assert(solver == "tromp" || solver == "default");
@@ -739,6 +741,9 @@ void static BitcoinMiner()
             // Create new block
             //
             unique_ptr<CBlockTemplate> pblocktemplate;
+
+            n = chainparams.EquihashN(pindexPrev->nHeight + 1);
+            k = chainparams.EquihashK(pindexPrev->nHeight + 1);
 
             bool isNextBlockFork = isForkBlock(pindexPrev->nHeight+1);
 
