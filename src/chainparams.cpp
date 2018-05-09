@@ -156,8 +156,8 @@ public:
         nForkHeightRange = 5467;
 
         nEquihashForkHeight = 600001;
-        nEquihashNnew = 144;
-        nEquihashKnew = 5;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CMainParams mainParams;
@@ -244,8 +244,8 @@ public:
         nForkHeightRange = 300;
 
         nEquihashForkHeight = 500;
-        nEquihashNnew = 144;
-        nEquihashKnew = 5;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CTestNetParams testNetParams;
@@ -317,8 +317,8 @@ public:
         nForkHeightRange = 0;
 
         nEquihashForkHeight = 100;
-        nEquihashNnew = 96;
-        nEquihashKnew = 5;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CRegTestParams regTestParams;
