@@ -257,7 +257,7 @@ UniValue generate(const UniValue& params, bool fHelp)
                 solutionTargetChecks.increment();
                 return CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus());
             };
-            bool found = EhBasicSolveUncancellable(n, k, curr_state, validBlock);
+            bool found = EhOptimisedSolveUncancellable(n, k, curr_state, validBlock);
             ehSolverRuns.increment();
             if (found) {
                 goto endloop;
