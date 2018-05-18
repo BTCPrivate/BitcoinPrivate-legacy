@@ -1,5 +1,4 @@
-
-    free(heap1);
+free(heap1);
   }
   void *alloc(const u32 n, const u32 sz) {
     void *mem  = calloc(n, sz);
