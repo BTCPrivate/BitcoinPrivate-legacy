@@ -1,4 +1,171 @@
-free(heap1);
+// Equihash solver
+// Copyright (c) 2016 John Tromp, The Zcash developers
+
+// Fix N, K, such that n = N/(k+1) is integer
+// Fix M = 2^{n+1} hashes each of length N bits,
+// H_0, ... , H_{M-1}, generated fom (n+1)-bit indices.
+// Problem: find binary tree on 2^K distinct indices,
+// for which the exclusive-or of leaf hashes is all 0s.
+// Additionally, it should satisfy the Wagner conditions:
+// for each height i subtree, the exclusive-or
+// of its 2^i corresponding hashes starts with i*n 0 bits,
+// and for i>0 the leftmost leaf of its left subtree
+// is less than the leftmost leaf of its right subtree
+
+// The algorithm below solves this by maintaining the trees
+// in a graph of K layers, each split into buckets
+// with buckets indexed by the first n-RESTBITS bits following
+// the i*n 0s, each bucket having 4 * 2^RESTBITS slots,
+// twice the number of subtrees expected to land there.
+
+#include "pow/tromp/equi.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <assert.h>
+
+typedef uint16_t u16;
+typedef uint64_t u64;
+
+#ifdef EQUIHASH_TROMP_ATOMIC
+#include <atomic>
+typedef std::atomic<u32> au32;
+#else
+typedef u32 au32;
+#endif
+
+#ifndef RESTBITS
+#define RESTBITS	4
+#endif
+
+// 2_log of number of buckets
+#define BUCKBITS (DIGITBITS-RESTBITS)
+
+#ifndef SAVEMEM
+#if RESTBITS == 4
+// can't save memory in such small buckets
+#define SAVEMEM 1
+#elif RESTBITS >= 8
+// take advantage of law of large numbers (sum of 2^8 random numbers)
+// this reduces (200,9) memory to under 144MB, with negligible discarding
+#define SAVEMEM 9/14
+#endif
+#endif
+
+// number of buckets
+static const u32 NBUCKETS = 1<<BUCKBITS;
+// 2_log of number of slots per bucket
+static const u32 SLOTBITS = RESTBITS+1+1;
+static const u32 SLOTRANGE = 1<<SLOTBITS;
+// number of slots per bucket
+static const u32 NSLOTS = SLOTRANGE * SAVEMEM;
+// number of per-xhash slots
+static const u32 XFULL = 16;
+// SLOTBITS mask
+static const u32 SLOTMASK = SLOTRANGE-1;
+// number of possible values of xhash (rest of n) bits
+static const u32 NRESTS = 1<<RESTBITS;
+// number of blocks of hashes extracted from single 512 bit blake2b output
+static const u32 NBLOCKS = (NHASHES+HASHESPERBLAKE-1)/HASHESPERBLAKE;
+// nothing larger found in 100000 runs
+static const u32 MAXSOLS = 8;
+
+// tree node identifying its children as two different slots in
+// a bucket on previous layer with the same rest bits (x-tra hash)
+struct tree {
+  u32 bid_s0_s1; // manual bitfields
+
+  tree(const u32 idx) {
+    bid_s0_s1 = idx;
+  }
+  tree(const u32 bid, const u32 s0, const u32 s1) {
+    bid_s0_s1 = (((bid << SLOTBITS) | s0) << SLOTBITS) | s1;
+  }
+  u32 getindex() const {
+    return bid_s0_s1;
+  }
+  u32 bucketid() const {
+    return bid_s0_s1 >> (2 * SLOTBITS);
+  }
+  u32 slotid0() const {
+    return (bid_s0_s1 >> SLOTBITS) & SLOTMASK;
+  }
+  u32 slotid1() const {
+    return bid_s0_s1 & SLOTMASK;
+  }
+};
+
+union hashunit {
+  u32 word;
+  uchar bytes[sizeof(u32)];
+};
+
+#define WORDS(bits)	((bits + 31) / 32)
+#define HASHWORDS0 WORDS(WN - DIGITBITS + RESTBITS)
+#define HASHWORDS1 WORDS(WN - 2*DIGITBITS + RESTBITS)
+
+struct slot0 {
+  tree attr;
+  hashunit hash[HASHWORDS0];
+};
+
+struct slot1 {
+  tree attr;
+  hashunit hash[HASHWORDS1];
+};
+
+// a bucket is NSLOTS treenodes
+typedef slot0 bucket0[NSLOTS];
+typedef slot1 bucket1[NSLOTS];
+// the N-bit hash consists of K+1 n-bit "digits"
+// each of which corresponds to a layer of NBUCKETS buckets
+typedef bucket0 digit0[NBUCKETS];
+typedef bucket1 digit1[NBUCKETS];
+
+// size (in bytes) of hash in round 0 <= r < WK
+u32 hashsize(const u32 r) {
+  const u32 hashbits = WN - (r+1) * DIGITBITS + RESTBITS;
+  return (hashbits + 7) / 8;
+}
+
+u32 hashwords(u32 bytes) {
+  return (bytes + 3) / 4;
+}
+
+// manages hash and tree data
+struct htalloc {
+  u32 *heap0;
+  u32 *heap1;
+  bucket0 *trees0[(WK+1)/2];
+  bucket1 *trees1[WK/2];
+  u32 alloced;
+  htalloc() {
+    alloced = 0;
+  }
+  void alloctrees() {
+// optimize xenoncat's fixed memory layout, avoiding any waste
+// digit  trees  hashes  trees hashes
+// 0      0 A A A A A A   . . . . . .
+// 1      0 A A A A A A   1 B B B B B
+// 2      0 2 C C C C C   1 B B B B B
+// 3      0 2 C C C C C   1 3 D D D D
+// 4      0 2 4 E E E E   1 3 D D D D
+// 5      0 2 4 E E E E   1 3 5 F F F
+// 6      0 2 4 6 . G G   1 3 5 F F F
+// 7      0 2 4 6 . G G   1 3 5 7 H H
+// 8      0 2 4 6 8 . I   1 3 5 7 H H
+    assert(DIGITBITS >= 16); // ensures hashes shorten by 1 unit every 2 digits
+    heap0 = (u32 *)alloc(1, sizeof(digit0));
+    heap1 = (u32 *)alloc(1, sizeof(digit1));
+    for (int r=0; r<WK; r++)
+      if ((r&1) == 0)
+        trees0[r/2]  = (bucket0 *)(heap0 + r/2);
+      else
+        trees1[r/2]  = (bucket1 *)(heap1 + r/2);
+  }
+  void dealloctrees() {
+    free(heap0);
+    free(heap1);
   }
   void *alloc(const u32 n, const u32 sz) {
     void *mem  = calloc(n, sz);
