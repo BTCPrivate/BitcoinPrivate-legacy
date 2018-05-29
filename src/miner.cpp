@@ -694,11 +694,18 @@ void static BitcoinMiner()
     // Each thread has its own counter
     unsigned int nExtraNonce = 0;
 
-    unsigned int n;
-    unsigned int k;
+    CBlockIndex* pindexPrev = chainActive.Tip();
+
+    unsigned int n = chainparams.EquihashN(pindexPrev->nHeight + 1);
+    unsigned int k = chainparams.EquihashK(pindexPrev->nHeight + 1);
 
     std::string solver = GetArg("-equihashsolver", "default");
+    
+    // TODO: parameterize n & k tromp solver and remove temporary workaround below
+    if (n == 200 && k == 9) solver = "default";
+    if (n == 192 && k == 7) solver = "tromp";
     assert(solver == "tromp" || solver == "default");
+    
     LogPrint("pow", "Using Equihash solver \"%s\" with n = %u, k = %u\n", solver, n, k);
 
     std::mutex m_cs;
@@ -733,7 +740,7 @@ void static BitcoinMiner()
                 miningTimer.start();
             }
 
-            CBlockIndex* pindexPrev = chainActive.Tip();
+            pindexPrev = chainActive.Tip();
             CBlock *pblock = nullptr;
             unsigned int nTransactionsUpdatedLast = 0;
 
@@ -832,8 +839,8 @@ void static BitcoinMiner()
                                                   pblock->nNonce.size());
 
                 // (x_1, x_2, ...) = A(I, V, n, k)
-                LogPrint("pow", "Running Equihash solver \"%s\" with nNonce = %s\n",
-                         solver, pblock->nNonce.ToString());
+                LogPrint("pow", "Running Equihash solver \"%s\" (%u,%u) with nNonce = %s\n",
+                         solver,n, k, pblock->nNonce.ToString());
 
                 std::function<bool(std::vector<unsigned char>)> validBlock =
                     [&pblock, &hashTarget, &m_cs, &cancelSolver, &chainparams
@@ -881,6 +888,11 @@ void static BitcoinMiner()
                     std::lock_guard<std::mutex> lock{m_cs};
                     return cancelSolver;
                 };
+
+				// TODO: parameterize n & k tromp solver and remove temporary workaround below
+    			if (n == 200 && k == 9) solver = "default";
+			    if (n == 192 && k == 7) solver = "tromp";
+    			assert(solver == "tromp" || solver == "default");
 
                 // TODO: factor this out into a function with the same API for each solver.
                 if (solver == "tromp") {

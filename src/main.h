@@ -589,7 +589,7 @@ std::string GetUTXOFileName(int nHeight);
 //
 inline bool isForkBlock(int nHeight)
 {
-    return (nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
+    return (forkHeightRange > 0 && nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
 }
 
 inline bool looksLikeForkBlockHeader(const CBlockHeader& header)
