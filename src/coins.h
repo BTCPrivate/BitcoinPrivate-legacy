@@ -19,7 +19,7 @@
 #include <boost/unordered_map.hpp>
 #include "zcash/IncrementalMerkleTree.hpp"
 
-/** 
+/**
  * Pruned version of CTransaction: only retains metadata and unspent transaction outputs
  *
  * Serialized format:
@@ -301,12 +301,13 @@ struct CAnchorsCacheEntry
     bool entered; // This will be false if the anchor is removed from the cache
     ZCIncrementalMerkleTree tree; // The tree itself
     unsigned char flags;
+    bool postBurn;
 
     enum Flags {
         DIRTY = (1 << 0), // This cache entry is potentially different from the version in the parent view.
     };
 
-    CAnchorsCacheEntry() : entered(false), flags(0) {}
+    CAnchorsCacheEntry() : entered(false), flags(0), postBurn(false) {}
 };
 
 struct CNullifiersCacheEntry
@@ -344,7 +345,7 @@ class CCoinsView
 {
 public:
     //! Retrieve the tree at a particular anchored root in the chain
-    virtual bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const;
+    virtual bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, const bool postBurn) const;
 
     //! Determine whether a nullifier is spent or not
     virtual bool GetNullifier(const uint256 &nullifier) const;
@@ -386,12 +387,13 @@ protected:
 
 public:
     CCoinsViewBacked(CCoinsView *viewIn);
-    bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const;
+    bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, const bool postBurn) const;
     bool GetNullifier(const uint256 &nullifier) const;
     bool GetCoins(const uint256 &txid, CCoins &coins) const;
     bool HaveCoins(const uint256 &txid) const;
     uint256 GetBestBlock() const;
     uint256 GetBestAnchor() const;
+
     void SetBackend(CCoinsView &viewIn);
     bool BatchWrite(CCoinsMap &mapCoins,
                     const uint256 &hashBlock,
@@ -404,10 +406,10 @@ public:
 
 class CCoinsViewCache;
 
-/** 
+/**
  * A reference to a mutable cache entry. Encapsulating it allows us to run
  *  cleanup code after the modification is finished, and keeping track of
- *  concurrent modifications. 
+ *  concurrent modifications.
  */
 class CCoinsModifier
 {
@@ -434,7 +436,7 @@ protected:
 
     /**
      * Make mutable so that we can "fill the cache" even from Get-methods
-     * declared as "const".  
+     * declared as "const".
      */
     mutable uint256 hashBlock;
     mutable CCoinsMap cacheCoins;
@@ -450,12 +452,13 @@ public:
     ~CCoinsViewCache();
 
     // Standard CCoinsView methods
-    bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const;
+    bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, const bool postBurn) const;
     bool GetNullifier(const uint256 &nullifier) const;
     bool GetCoins(const uint256 &txid, CCoins &coins) const;
     bool HaveCoins(const uint256 &txid) const;
     uint256 GetBestBlock() const;
     uint256 GetBestAnchor() const;
+
     void SetBestBlock(const uint256 &hashBlock);
     bool BatchWrite(CCoinsMap &mapCoins,
                     const uint256 &hashBlock,
@@ -466,11 +469,11 @@ public:
 
     // Adds the tree to mapAnchors and sets the current commitment
     // root to this root.
-    void PushAnchor(const ZCIncrementalMerkleTree &tree);
+    void PushAnchor(const ZCIncrementalMerkleTree &tree, const bool postBurn);
 
     // Removes the current commitment root from mapAnchors and sets
     // the new current root.
-    void PopAnchor(const uint256 &rt);
+    void PopAnchor(const uint256 &rt, const bool postBurn);
 
     // Marks a nullifier as spent or not.
     void SetNullifier(const uint256 &nullifier, bool spent);
@@ -502,7 +505,7 @@ public:
     //! Calculate the size of the cache (in bytes)
     size_t DynamicMemoryUsage() const;
 
-    /** 
+    /**
      * Amount of bitcoins coming in to a transaction
      * Note that lightweight clients may not know anything besides the hash of previous transactions,
      * so may not be able to calculate this.
@@ -516,7 +519,7 @@ public:
     bool HaveInputs(const CTransaction& tx) const;
 
     //! Check whether all joinsplit requirements (anchors/nullifiers) are satisfied
-    bool HaveJoinSplitRequirements(const CTransaction& tx) const;
+    bool HaveJoinSplitRequirements(const CTransaction& tx, const bool postBurn) const;
 
     //! Return priority of tx at height nHeight
     double GetPriority(const CTransaction &tx, int nHeight) const;

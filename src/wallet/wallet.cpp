@@ -1723,7 +1723,7 @@ void CWallet::WitnessNoteCommitment(std::vector<uint256> commitments,
         // Consistency check: we should be able to find the current tree
         // in our CCoins view.
         ZCIncrementalMerkleTree dummy_tree;
-        assert(pcoinsTip->GetAnchorAt(current_anchor, dummy_tree));
+        assert(pcoinsTip->GetAnchorAt(current_anchor, dummy_tree, false));
 
         pindex = chainActive.Next(pindex);
     }
@@ -1777,7 +1777,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             ZCIncrementalMerkleTree tree;
             // This should never fail: we should always be able to get the tree
             // state on the path to the tip of our chain
-            assert(pcoinsTip->GetAnchorAt(pindex->hashAnchor, tree));
+            assert(pcoinsTip->GetAnchorAt(pindex->hashAnchor, tree, pindex->nHeight > chainParams.GetConsensus().zResetHeight));
             // Increment note witness caches
             IncrementNoteWitnesses(pindex, &block, tree);
 
@@ -2194,6 +2194,10 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 
     {
         LOCK2(cs_main, cs_wallet);
+
+        auto curHeight = chainActive.Height();
+        auto params = Params().GetConsensus();
+
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const uint256& wtxid = it->first;
@@ -2209,6 +2213,9 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                 continue;
 
             if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
+                continue;
+
+            if (curHeight >= params.nUnmovedBurnHeight && pcoin->GetHeightInMainChain() <= forkStartHeight + forkHeightRange)
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
@@ -3649,11 +3656,18 @@ void CWallet::GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries, st
 
     LOCK2(cs_main, cs_wallet);
 
+    auto curHeight = chainActive.Height();
+    auto params = Params().GetConsensus();
+
     for (auto & p : mapWallet) {
         CWalletTx wtx = p.second;
 
         // Filter the transactions before checking for notes
         if (!CheckFinalTx(wtx) || wtx.GetBlocksToMaturity() > 0 || wtx.GetDepthInMainChain() < minDepth) {
+            continue;
+        }
+
+        if (curHeight >= params.zResetHeight && wtx.GetHeightInMainChain() <= params.zResetHeight) {
             continue;
         }
 

@@ -34,7 +34,7 @@ public:
         hashBestAnchor_ = ZCIncrementalMerkleTree::empty_root();
     }
 
-    bool GetAnchorAt(const uint256& rt, ZCIncrementalMerkleTree &tree) const {
+    bool GetAnchorAt(const uint256& rt, ZCIncrementalMerkleTree &tree, bool postBurn) const {
         if (rt == ZCIncrementalMerkleTree::empty_root()) {
             ZCIncrementalMerkleTree new_tree;
             tree = new_tree;
@@ -262,21 +262,21 @@ BOOST_AUTO_TEST_CASE(anchor_pop_regression_test)
         tree.append(cm);
 
         // Add the anchor
-        cache1.PushAnchor(tree);
+        cache1.PushAnchor(tree, false);
         cache1.Flush();
 
         // Remove the anchor
-        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root());
+        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root(), false);
         cache1.Flush();
 
         // Add the anchor back
-        cache1.PushAnchor(tree);
+        cache1.PushAnchor(tree, false);
         cache1.Flush();
 
         // The base contains the anchor, of course!
         {
             ZCIncrementalMerkleTree checktree;
-            BOOST_CHECK(cache1.GetAnchorAt(tree.root(), checktree));
+            BOOST_CHECK(cache1.GetAnchorAt(tree.root(), checktree, false));
             BOOST_CHECK(checktree.root() == tree.root());
         }
     }
@@ -292,15 +292,15 @@ BOOST_AUTO_TEST_CASE(anchor_pop_regression_test)
         tree.append(cm);
 
         // Add the anchor and flush to disk
-        cache1.PushAnchor(tree);
+        cache1.PushAnchor(tree, false);
         cache1.Flush();
 
         // Remove the anchor, but don't flush yet!
-        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root());
+        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root(), false);
 
         {
             CCoinsViewCacheTest cache2(&cache1); // Build cache on top
-            cache2.PushAnchor(tree); // Put the same anchor back!
+            cache2.PushAnchor(tree, false); // Put the same anchor back!
             cache2.Flush(); // Flush to cache1
         }
 
@@ -309,7 +309,7 @@ BOOST_AUTO_TEST_CASE(anchor_pop_regression_test)
         // treestate...
         {
             ZCIncrementalMerkleTree checktree;
-            BOOST_CHECK(cache1.GetAnchorAt(tree.root(), checktree));
+            BOOST_CHECK(cache1.GetAnchorAt(tree.root(), checktree, false));
             BOOST_CHECK(checktree.root() == tree.root()); // Oh, shucks.
         }
 
@@ -318,7 +318,7 @@ BOOST_AUTO_TEST_CASE(anchor_pop_regression_test)
         cache1.Flush();
         {
             ZCIncrementalMerkleTree checktree;
-            BOOST_CHECK(cache1.GetAnchorAt(tree.root(), checktree));
+            BOOST_CHECK(cache1.GetAnchorAt(tree.root(), checktree, false));
             BOOST_CHECK(checktree.root() == tree.root()); // Oh, shucks.
         }
     }
@@ -335,12 +335,12 @@ BOOST_AUTO_TEST_CASE(anchor_regression_test)
         ZCIncrementalMerkleTree tree;
         uint256 cm = GetRandHash();
         tree.append(cm);
-        cache1.PushAnchor(tree);
+        cache1.PushAnchor(tree, false);
         cache1.Flush();
 
-        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root());
+        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root(), false);
         BOOST_CHECK(cache1.GetBestAnchor() == ZCIncrementalMerkleTree::empty_root());
-        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree));
+        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree, false));
     }
 
     // Also correct behavior:
@@ -352,13 +352,13 @@ BOOST_AUTO_TEST_CASE(anchor_regression_test)
         ZCIncrementalMerkleTree tree;
         uint256 cm = GetRandHash();
         tree.append(cm);
-        cache1.PushAnchor(tree);
+        cache1.PushAnchor(tree, false);
         cache1.Flush();
 
-        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root());
+        cache1.PopAnchor(ZCIncrementalMerkleTree::empty_root(), false);
         cache1.Flush();
         BOOST_CHECK(cache1.GetBestAnchor() == ZCIncrementalMerkleTree::empty_root());
-        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree));
+        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree, false));
     }
 
     // Works because we bring the anchor in from parent cache.
@@ -370,19 +370,19 @@ BOOST_AUTO_TEST_CASE(anchor_regression_test)
         ZCIncrementalMerkleTree tree;
         uint256 cm = GetRandHash();
         tree.append(cm);
-        cache1.PushAnchor(tree);
+        cache1.PushAnchor(tree, false);
         cache1.Flush();
 
         {
             // Pop anchor.
             CCoinsViewCacheTest cache2(&cache1);
-            BOOST_CHECK(cache2.GetAnchorAt(tree.root(), tree));
-            cache2.PopAnchor(ZCIncrementalMerkleTree::empty_root());
+            BOOST_CHECK(cache2.GetAnchorAt(tree.root(), tree, false));
+            cache2.PopAnchor(ZCIncrementalMerkleTree::empty_root(), false);
             cache2.Flush();
         }
 
         BOOST_CHECK(cache1.GetBestAnchor() == ZCIncrementalMerkleTree::empty_root());
-        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree));
+        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree, false));
     }
 
     // Was broken:
@@ -394,18 +394,18 @@ BOOST_AUTO_TEST_CASE(anchor_regression_test)
         ZCIncrementalMerkleTree tree;
         uint256 cm = GetRandHash();
         tree.append(cm);
-        cache1.PushAnchor(tree);
+        cache1.PushAnchor(tree, false);
         cache1.Flush();
 
         {
             // Pop anchor.
             CCoinsViewCacheTest cache2(&cache1);
-            cache2.PopAnchor(ZCIncrementalMerkleTree::empty_root());
+            cache2.PopAnchor(ZCIncrementalMerkleTree::empty_root(), false);
             cache2.Flush();
         }
 
         BOOST_CHECK(cache1.GetBestAnchor() == ZCIncrementalMerkleTree::empty_root());
-        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree));
+        BOOST_CHECK(!cache1.GetAnchorAt(tree.root(), tree, false));
     }
 }
 
@@ -440,22 +440,22 @@ BOOST_AUTO_TEST_CASE(anchors_flush_test)
     {
         CCoinsViewCacheTest cache(&base);
         ZCIncrementalMerkleTree tree;
-        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree));
+        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree, false));
         appendRandomCommitment(tree);
 
         newrt = tree.root();
 
-        cache.PushAnchor(tree);
+        cache.PushAnchor(tree, false);
         cache.Flush();
     }
 
     {
         CCoinsViewCacheTest cache(&base);
         ZCIncrementalMerkleTree tree;
-        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree));
+        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree, false));
 
         // Get the cached entry.
-        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree));
+        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree, false));
 
         uint256 check_rt = tree.root();
 
@@ -499,7 +499,7 @@ BOOST_AUTO_TEST_CASE(chained_joinsplits)
         CMutableTransaction mtx;
         mtx.vjoinsplit.push_back(js2);
 
-        BOOST_CHECK(!cache.HaveJoinSplitRequirements(mtx));
+        BOOST_CHECK(!cache.HaveJoinSplitRequirements(mtx, false));
     }
 
     {
@@ -509,7 +509,7 @@ BOOST_AUTO_TEST_CASE(chained_joinsplits)
         mtx.vjoinsplit.push_back(js2);
         mtx.vjoinsplit.push_back(js1);
 
-        BOOST_CHECK(!cache.HaveJoinSplitRequirements(mtx));
+        BOOST_CHECK(!cache.HaveJoinSplitRequirements(mtx, false));
     }
 
     {
@@ -517,7 +517,7 @@ BOOST_AUTO_TEST_CASE(chained_joinsplits)
         mtx.vjoinsplit.push_back(js1);
         mtx.vjoinsplit.push_back(js2);
 
-        BOOST_CHECK(cache.HaveJoinSplitRequirements(mtx));
+        BOOST_CHECK(cache.HaveJoinSplitRequirements(mtx, false));
     }
 
     {
@@ -526,7 +526,7 @@ BOOST_AUTO_TEST_CASE(chained_joinsplits)
         mtx.vjoinsplit.push_back(js2);
         mtx.vjoinsplit.push_back(js3);
 
-        BOOST_CHECK(cache.HaveJoinSplitRequirements(mtx));
+        BOOST_CHECK(cache.HaveJoinSplitRequirements(mtx, false));
     }
 
     {
@@ -536,7 +536,7 @@ BOOST_AUTO_TEST_CASE(chained_joinsplits)
         mtx.vjoinsplit.push_back(js2);
         mtx.vjoinsplit.push_back(js3);
 
-        BOOST_CHECK(cache.HaveJoinSplitRequirements(mtx));
+        BOOST_CHECK(cache.HaveJoinSplitRequirements(mtx, false));
     }
 }
 
@@ -553,7 +553,7 @@ BOOST_AUTO_TEST_CASE(anchors_test)
     {
         ZCIncrementalMerkleTree tree;
 
-        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree));
+        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), tree, false));
         BOOST_CHECK(cache.GetBestAnchor() == tree.root());
         appendRandomCommitment(tree);
         appendRandomCommitment(tree);
@@ -569,12 +569,12 @@ BOOST_AUTO_TEST_CASE(anchors_test)
         uint256 newrt = tree.root();
         uint256 newrt2;
 
-        cache.PushAnchor(tree);
+        cache.PushAnchor(tree, false);
         BOOST_CHECK(cache.GetBestAnchor() == newrt);
 
         {
             ZCIncrementalMerkleTree confirm_same;
-            BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), confirm_same));
+            BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), confirm_same, false));
 
             BOOST_CHECK(confirm_same.root() == newrt);
         }
@@ -584,26 +584,26 @@ BOOST_AUTO_TEST_CASE(anchors_test)
 
         newrt2 = tree.root();
 
-        cache.PushAnchor(tree);
+        cache.PushAnchor(tree, false);
         BOOST_CHECK(cache.GetBestAnchor() == newrt2);
 
         ZCIncrementalMerkleTree test_tree;
-        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), test_tree));
+        BOOST_CHECK(cache.GetAnchorAt(cache.GetBestAnchor(), test_tree, false));
 
         BOOST_CHECK(tree.root() == test_tree.root());
 
         {
             ZCIncrementalMerkleTree test_tree2;
-            cache.GetAnchorAt(newrt, test_tree2);
+            cache.GetAnchorAt(newrt, test_tree2, false);
 
             BOOST_CHECK(test_tree2.root() == newrt);
         }
 
         {
-            cache.PopAnchor(newrt);
+            cache.PopAnchor(newrt, false);
             ZCIncrementalMerkleTree obtain_tree;
-            assert(!cache.GetAnchorAt(newrt2, obtain_tree)); // should have been popped off
-            assert(cache.GetAnchorAt(newrt, obtain_tree));
+            assert(!cache.GetAnchorAt(newrt2, obtain_tree, false)); // should have been popped off
+            assert(cache.GetAnchorAt(newrt, obtain_tree, false));
 
             assert(obtain_tree.root() == newrt);
         }

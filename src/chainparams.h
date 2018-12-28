@@ -80,6 +80,7 @@ public:
 
     uint64_t ForkStartHeight() const { return nForkStartHeight; };
     uint64_t ForkHeightRange() const { return nForkHeightRange; };
+
 protected:
     CChainParams() {}
 
