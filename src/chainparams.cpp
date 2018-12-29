@@ -60,7 +60,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
         consensus.nUnmovedBurnHeight = 475000;
-        consensus.zResetHeight = 454000;
+        consensus.zResetHeight = 455500;
 
         pchMessageStart[0] = 0xa8;
         pchMessageStart[1] = 0xea;
