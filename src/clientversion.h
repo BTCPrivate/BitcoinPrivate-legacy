@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2014 The Bitcoin Core developers
 // Copyright (c) 2016-2017 The Zcash developers
+// Copyright (c) 2016-2017 The Zclassic developers
+// Copyright (c) 2017-2018 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -18,7 +20,7 @@
 #define CLIENT_VERSION_MAJOR 1
 #define CLIENT_VERSION_MINOR 0
 #define CLIENT_VERSION_REVISION 12
-#define CLIENT_VERSION_BUILD 50
+#define CLIENT_VERSION_BUILD 51
 
 //! Set to true for release, false for prerelease or test build
 #define CLIENT_VERSION_IS_RELEASE true

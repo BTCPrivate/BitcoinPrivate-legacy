@@ -6,6 +6,7 @@
 
 #include "memusage.h"
 #include "random.h"
+#include "util.h"
 #include "version.h"
 #include "policy/fees.h"
 
@@ -34,7 +35,7 @@ void CCoins::CalcMaskSize(unsigned int &nBytes, unsigned int &nNonzeroBytes) con
     nBytes += nLastUsedByte;
 }
 
-bool CCoins::Spend(uint32_t nPos) 
+bool CCoins::Spend(uint32_t nPos)
 {
     if (nPos >= vout.size() || vout[nPos].IsNull())
         return false;
@@ -42,7 +43,7 @@ bool CCoins::Spend(uint32_t nPos)
     Cleanup();
     return true;
 }
-bool CCoinsView::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const { return false; }
+bool CCoinsView::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, const bool postBurn) const { return false; }
 bool CCoinsView::GetNullifier(const uint256 &nullifier) const { return false; }
 bool CCoinsView::GetCoins(const uint256 &txid, CCoins &coins) const { return false; }
 bool CCoinsView::HaveCoins(const uint256 &txid) const { return false; }
@@ -55,10 +56,9 @@ bool CCoinsView::BatchWrite(CCoinsMap &mapCoins,
                             CNullifiersMap &mapNullifiers) { return false; }
 bool CCoinsView::GetStats(CCoinsStats &stats) const { return false; }
 
-
 CCoinsViewBacked::CCoinsViewBacked(CCoinsView *viewIn) : base(viewIn) { }
 
-bool CCoinsViewBacked::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const { return base->GetAnchorAt(rt, tree); }
+bool CCoinsViewBacked::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, const bool postBurn) const { return base->GetAnchorAt(rt, tree, postBurn); }
 bool CCoinsViewBacked::GetNullifier(const uint256 &nullifier) const { return base->GetNullifier(nullifier); }
 bool CCoinsViewBacked::GetCoins(const uint256 &txid, CCoins &coins) const { return base->GetCoins(txid, coins); }
 bool CCoinsViewBacked::HaveCoins(const uint256 &txid) const { return base->HaveCoins(txid); }
@@ -106,25 +106,25 @@ CCoinsMap::const_iterator CCoinsViewCache::FetchCoins(const uint256 &txid) const
     return ret;
 }
 
-
-bool CCoinsViewCache::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const {
+bool CCoinsViewCache::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, const bool postBurn) const {
     CAnchorsMap::const_iterator it = cacheAnchors.find(rt);
     if (it != cacheAnchors.end()) {
         if (it->second.entered) {
             tree = it->second.tree;
-            return true;
+            return (!postBurn || it->second.postBurn);
         } else {
             return false;
         }
     }
 
-    if (!base->GetAnchorAt(rt, tree)) {
+    if (!base->GetAnchorAt(rt, tree, postBurn)) {
         return false;
     }
 
     CAnchorsMap::iterator ret = cacheAnchors.insert(std::make_pair(rt, CAnchorsCacheEntry())).first;
     ret->second.entered = true;
     ret->second.tree = tree;
+    ret->second.postBurn = postBurn;
     cachedCoinsUsage += ret->second.tree.DynamicMemoryUsage();
 
     return true;
@@ -144,7 +144,7 @@ bool CCoinsViewCache::GetNullifier(const uint256 &nullifier) const {
     return tmp;
 }
 
-void CCoinsViewCache::PushAnchor(const ZCIncrementalMerkleTree &tree) {
+void CCoinsViewCache::PushAnchor(const ZCIncrementalMerkleTree &tree, const bool postBurn) {
     uint256 newrt = tree.root();
 
     auto currentRoot = GetBestAnchor();
@@ -161,6 +161,7 @@ void CCoinsViewCache::PushAnchor(const ZCIncrementalMerkleTree &tree) {
         ret->second.entered = true;
         ret->second.tree = tree;
         ret->second.flags = CAnchorsCacheEntry::DIRTY;
+        ret->second.postBurn = postBurn;
 
         if (insertRet.second) {
             // An insert took place
@@ -171,7 +172,7 @@ void CCoinsViewCache::PushAnchor(const ZCIncrementalMerkleTree &tree) {
     }
 }
 
-void CCoinsViewCache::PopAnchor(const uint256 &newrt) {
+void CCoinsViewCache::PopAnchor(const uint256 &newrt, const bool postBurn) {
     auto currentRoot = GetBestAnchor();
 
     // Blocks might not change the commitment tree, in which
@@ -182,11 +183,12 @@ void CCoinsViewCache::PopAnchor(const uint256 &newrt) {
         // so that its tree exists in memory.
         {
             ZCIncrementalMerkleTree tree;
-            assert(GetAnchorAt(currentRoot, tree));
+            assert(GetAnchorAt(currentRoot, tree, postBurn));
         }
 
         // Mark the anchor as unentered, removing it from view
         cacheAnchors[currentRoot].entered = false;
+        cacheAnchors[currentRoot].postBurn = postBurn;
 
         // Mark the cache entry as dirty so it's propagated
         cacheAnchors[currentRoot].flags = CAnchorsCacheEntry::DIRTY;
@@ -317,6 +319,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins,
                 CAnchorsCacheEntry& entry = cacheAnchors[child_it->first];
                 entry.entered = child_it->second.entered;
                 entry.tree = child_it->second.tree;
+                entry.postBurn = child_it->second.postBurn;
                 entry.flags = CAnchorsCacheEntry::DIRTY;
 
                 cachedCoinsUsage += entry.tree.DynamicMemoryUsage();
@@ -326,6 +329,13 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins,
                     parent_it->second.entered = child_it->second.entered;
                     parent_it->second.flags |= CAnchorsCacheEntry::DIRTY;
                 }
+
+                if (parent_it->second.postBurn != child_it->second.postBurn) {
+                    // The parent may have removed the entry.
+                    parent_it->second.postBurn = child_it->second.postBurn;
+                    parent_it->second.flags |= CAnchorsCacheEntry::DIRTY;
+                }
+
             }
         }
 
@@ -392,7 +402,7 @@ CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
     return nResult;
 }
 
-bool CCoinsViewCache::HaveJoinSplitRequirements(const CTransaction& tx) const
+bool CCoinsViewCache::HaveJoinSplitRequirements(const CTransaction& tx, const bool postBurn) const
 {
     boost::unordered_map<uint256, ZCIncrementalMerkleTree, CCoinsKeyHasher> intermediates;
 
@@ -411,7 +421,7 @@ bool CCoinsViewCache::HaveJoinSplitRequirements(const CTransaction& tx) const
         auto it = intermediates.find(joinsplit.anchor);
         if (it != intermediates.end()) {
             tree = it->second;
-        } else if (!GetAnchorAt(joinsplit.anchor, tree)) {
+        } else if (!GetAnchorAt(joinsplit.anchor, tree, postBurn)) {
             return false;
         }
 

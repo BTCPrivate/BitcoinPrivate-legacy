@@ -59,6 +59,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+        consensus.nUnmovedBurnHeight = 480000;
+        consensus.zResetHeight = 455500;
 
         pchMessageStart[0] = 0xa8;
         pchMessageStart[1] = 0xea;
@@ -105,6 +107,7 @@ public:
         vSeeds.clear();
         // TODO: setup a DNSSeed
         vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.btcprivate.org"));
+        vSeeds.push_back(CDNSSeedData("btcprivate.co", "dnsseed.btcprivate.co"));
 
         // guarantees the first 2 characters, when base58 encoded, are "b1"
         base58Prefixes[PUBKEY_ADDRESS]     = {0x13,0x25};
@@ -181,6 +184,9 @@ public:
 
         consensus.nPowDifficultyBombHeight = 600000;
 
+        consensus.nUnmovedBurnHeight = 475000;
+        consensus.zResetHeight = 450500;
+
         pchMessageStart[0] = 0xf6;
         pchMessageStart[1] = 0x1b;
         pchMessageStart[2] = 0xf6;
@@ -200,7 +206,8 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.testnet1.btcprivate.org"));
+        vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.testnet.btcprivate.org"));
+        vSeeds.push_back(CDNSSeedData("btcprivate.co", "dnsseed.testnet1.btcprivate.co"));
 
         // guarantees the first 2 characters, when base58 encoded, are "n1"
         base58Prefixes[PUBKEY_ADDRESS]     = {0x19,0x57};
@@ -266,6 +273,9 @@ public:
 
         consensus.nPowDifficultyBombHeight = 600000;
 
+        consensus.nUnmovedBurnHeight = 500;
+        consensus.zResetHeight = 300;
+
         pchMessageStart[0] = 0xaa;
         pchMessageStart[1] = 0xe8;
         pchMessageStart[2] = 0x3f;
@@ -301,7 +311,7 @@ public:
             0
         };
 
-        nForkStartHeight = 0;
+        nForkStartHeight = 50;
         nForkHeightRange = 0;
     }
 };

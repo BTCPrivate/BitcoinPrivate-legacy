@@ -1170,7 +1170,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
                                  REJECT_DUPLICATE, "bad-txns-inputs-spent");
 
         // are the joinsplit's requirements met?
-        if (!view.HaveJoinSplitRequirements(tx))
+        if (!view.HaveJoinSplitRequirements(tx, chainActive.Height() >= Params().GetConsensus().zResetHeight))
             return state.Invalid(error("AcceptToMemoryPool: joinsplit requirements not met"),
                                  REJECT_DUPLICATE, "bad-txns-joinsplit-requirements-not-met");
 
@@ -1736,7 +1736,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             return state.Invalid(error("CheckInputs(): %s inputs unavailable", tx.GetHash().ToString()));
 
         // are the JoinSplit's requirements met?
-        if (!inputs.HaveJoinSplitRequirements(tx))
+        if (!inputs.HaveJoinSplitRequirements(tx, nSpendHeight > consensusParams.zResetHeight))
             return state.Invalid(error("CheckInputs(): %s JoinSplit requirements not met", tx.GetHash().ToString()));
 
         CAmount nValueIn = 0;
@@ -1746,6 +1746,14 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             const COutPoint &prevout = tx.vin[i].prevout;
             const CCoins *coins = inputs.AccessCoins(prevout.hash);
             assert(coins);
+
+            if(consensusParams.nUnmovedBurnHeight && nSpendHeight > consensusParams.nUnmovedBurnHeight) {
+                if(coins->nHeight <= forkStartHeight + forkHeightRange) {
+                    return state.Invalid(
+                        error("CheckInputs(): unmoved coins are burned"),
+                        REJECT_INVALID, "bad-txns-coins-burned");
+                }
+            }
 
             if (coins->IsCoinBase()) {
                 // Ensure that coinbases are matured
@@ -2109,7 +2117,7 @@ const CTxIn input = tx.vin[j];
     }
 
     // set the old best anchor back
-    view.PopAnchor(blockUndo.old_tree_root);
+    view.PopAnchor(blockUndo.old_tree_root, pindex->nHeight >= Params().GetConsensus().zResetHeight);
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
@@ -2359,6 +2367,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // Construct the incremental merkle tree at the current
     // block position,
     auto old_tree_root = view.GetBestAnchor();
+
     // saving the top anchor in the block index as we go.
     if (!fJustCheck) {
         pindex->hashAnchor = old_tree_root;
@@ -2366,7 +2375,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     ZCIncrementalMerkleTree tree;
     // This should never fail: we should always be able to get the root
     // that is on the tip of our chain
-    assert(view.GetAnchorAt(old_tree_root, tree));
+    assert(view.GetAnchorAt(old_tree_root, tree, pindex->nHeight - 1 >= chainparams.GetConsensus().zResetHeight));
 
     {
         // Consistency check: the root of the tree we're given should
@@ -2393,7 +2402,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                  REJECT_INVALID, "bad-txns-inputs-missingorspent");
 
             // are the JoinSplit's requirements met?
-            if (!view.HaveJoinSplitRequirements(tx))
+            if (!view.HaveJoinSplitRequirements(tx, pindex->nHeight > chainparams.GetConsensus().zResetHeight))
                 return state.DoS(100, error("ConnectBlock(): JoinSplit requirements not met"),
                                  REJECT_INVALID, "bad-txns-joinsplit-requirements-not-met"); 
 								 if (fAddressIndex || fSpentIndex)
@@ -2496,7 +2505,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
     }
 
-    view.PushAnchor(tree);
+    if(pindex->nHeight == chainparams.GetConsensus().zResetHeight) {
+        tree = ZCIncrementalMerkleTree();
+        tree.append(tree.root());
+    }
+
+    view.PushAnchor(tree, pindex->nHeight >= chainparams.GetConsensus().zResetHeight);
     if (!fJustCheck) {
         pindex->hashAnchorEnd = tree.root();
     }
@@ -2821,7 +2835,7 @@ bool static DisconnectTip(CValidationState &state) {
     UpdateTip(pindexDelete->pprev);
     // Get the current commitment tree
     ZCIncrementalMerkleTree newTree;
-    assert(pcoinsTip->GetAnchorAt(pcoinsTip->GetBestAnchor(), newTree));
+    assert(pcoinsTip->GetAnchorAt(pcoinsTip->GetBestAnchor(), newTree, pindexDelete->nHeight - 1 >= Params().GetConsensus().zResetHeight));
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
@@ -2855,7 +2869,7 @@ bool static ConnectTip(CValidationState &state, CBlockIndex *pindexNew, CBlock *
     }
     // Get the current commitment tree
     ZCIncrementalMerkleTree oldTree;
-    assert(pcoinsTip->GetAnchorAt(pcoinsTip->GetBestAnchor(), oldTree));
+    assert(pcoinsTip->GetAnchorAt(pcoinsTip->GetBestAnchor(), oldTree, chainActive.Height() >= Params().GetConsensus().zResetHeight));
     // Apply the block atomically to the chain state.
     int64_t nTime2 = GetTimeMicros(); nTimeReadFromDisk += nTime2 - nTime1;
     int64_t nTime3;
@@ -4196,6 +4210,7 @@ bool CVerifyDB::VerifyDB(CCoinsView *coinsview, int nCheckLevel, int nCheckDepth
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
             if (!ConnectBlock(block, state, pindex, coins))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
+
         }
     }
 
@@ -4244,6 +4259,7 @@ bool LoadBlockIndex()
     // Load block index from databases
     if (!fReindex && !LoadBlockIndexDB())
         return false;
+
     return true;
 }
 

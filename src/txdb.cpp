@@ -29,6 +29,7 @@ static const char DB_TIMESTAMPINDEX = 'S';
 static const char DB_BLOCKHASHINDEX = 'z';
 static const char DB_SPENTINDEX = 'p';
 static const char DB_BLOCK_INDEX = 'b';
+static const char DB_ANCHOR_POST = 'P';
 
 static const char DB_BEST_BLOCK = 'B';
 static const char DB_BEST_ANCHOR = 'a';
@@ -40,12 +41,17 @@ static const char DB_LAST_BLOCK = 'l';
 void static BatchWriteAnchor(CLevelDBBatch &batch,
                              const uint256 &croot,
                              const ZCIncrementalMerkleTree &tree,
-                             const bool &entered)
+                             const bool &entered,
+                             const bool &postBurn)
 {
-    if (!entered)
+    if (!entered) {
         batch.Erase(make_pair(DB_ANCHOR, croot));
-    else {
+        if(postBurn)
+            batch.Erase(make_pair(DB_ANCHOR_POST, croot));
+    } else {
         batch.Write(make_pair(DB_ANCHOR, croot), tree);
+        if(postBurn)
+            batch.Write(make_pair(DB_ANCHOR_POST, croot), true);
     }
 }
 
@@ -78,14 +84,17 @@ CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(Get
 }
 
 
-bool CCoinsViewDB::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const {
+bool CCoinsViewDB::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, bool postBurn) const {
     if (rt == ZCIncrementalMerkleTree::empty_root()) {
         ZCIncrementalMerkleTree new_tree;
         tree = new_tree;
         return true;
     }
 
+    bool post;
     bool read = db.Read(make_pair(DB_ANCHOR, rt), tree);
+    if(postBurn)
+        read = read && db.Read(make_pair(DB_ANCHOR_POST, rt), post);
 
     return read;
 }
@@ -139,7 +148,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins,
 
     for (CAnchorsMap::iterator it = mapAnchors.begin(); it != mapAnchors.end();) {
         if (it->second.flags & CAnchorsCacheEntry::DIRTY) {
-            BatchWriteAnchor(batch, it->first, it->second.tree, it->second.entered);
+            BatchWriteAnchor(batch, it->first, it->second.tree, it->second.entered, it->second.postBurn);
             // TODO: changed++?
         }
         CAnchorsMap::iterator itOld = it++;

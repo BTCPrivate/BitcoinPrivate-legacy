@@ -334,7 +334,7 @@ class FakeCoinsViewDB : public CCoinsViewDB {
 public:
     FakeCoinsViewDB(std::string dbName, uint256& hash) : CCoinsViewDB(dbName, 100, false, false), hash(hash) {}
 
-    bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree) const {
+    bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree, bool postBurn) const {
         if (rt == t.root()) {
             tree = t;
             return true;
@@ -404,4 +404,3 @@ double benchmark_connectblock_slow()
 
     return duration;
 }
-

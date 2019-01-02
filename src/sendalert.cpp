@@ -1,4 +1,5 @@
 // Copyright (c) 2016 The Zcash developers
+// Copyright (c) 2018 The Bitcoin Private developers
 // Original code from: https://gist.github.com/laanwj/0e689cfa37b52bcbbb44
 
 /*
@@ -77,8 +78,8 @@ void ThreadSendAlert()
 
     // These versions are protocol versions
     // 170002 : 1.0.0
-    alert.nMinVer       = 180003;
-    alert.nMaxVer       = 180003;
+    alert.nMinVer       = 170002;
+    alert.nMaxVer       = 180004;
 
     //
     // main.cpp:
@@ -92,17 +93,15 @@ void ThreadSendAlert()
     alert.strRPCError   = alert.strStatusBar;
 
     // Set specific client version/versions here. If setSubVer is empty, no filtering on subver is done:
-    // alert.setSubVer.insert(std::string("/MagicBean:0.7.2/"));
-    const std::vector<std::string> useragents = {"MagicBean", "BeanStalk", "AppleSeed", "EleosZcash"};
+    // alert.setSubVer.insert(std::string("/BTCP:1.0.12/"));
+    const std::vector<std::string> useragents = {"BTCP"};
 
     BOOST_FOREACH(const std::string& useragent, useragents) {
-        alert.setSubVer.insert(std::string("/"+useragent+":1.0.3/"));
-        alert.setSubVer.insert(std::string("/"+useragent+":1.0.4/"));
-        alert.setSubVer.insert(std::string("/"+useragent+":1.0.5/"));
-        alert.setSubVer.insert(std::string("/"+useragent+":1.0.6/"));
-        alert.setSubVer.insert(std::string("/"+useragent+":1.0.7/"));
-        alert.setSubVer.insert(std::string("/"+useragent+":1.0.7-1/"));
-        alert.setSubVer.insert(std::string("/"+useragent+":1.0.8/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.10-1/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.10-2/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.11/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.12/"));
+        alert.setSubVer.insert(std::string("/"+useragent+":1.0.12-1/"));
     }
 
     // Sanity check

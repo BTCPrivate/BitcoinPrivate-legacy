@@ -473,7 +473,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             if (it != intermediates.end()) {
                 tree = it->second;
             } else {
-                assert(pcoins->GetAnchorAt(joinsplit.anchor, tree));
+                assert(pcoins->GetAnchorAt(joinsplit.anchor, tree, false));
             }
 
             BOOST_FOREACH(const uint256& commitment, joinsplit.commitments)
