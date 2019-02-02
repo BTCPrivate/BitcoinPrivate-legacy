@@ -184,8 +184,8 @@ public:
 
         consensus.nPowDifficultyBombHeight = 600000;
 
-        consensus.nUnmovedBurnHeight = 475000;
-        consensus.zResetHeight = 450500;
+        consensus.nUnmovedBurnHeight = 480000;
+        consensus.zResetHeight = 455500;
 
         pchMessageStart[0] = 0xf6;
         pchMessageStart[1] = 0x1b;
