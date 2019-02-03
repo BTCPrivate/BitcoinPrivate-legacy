@@ -1,5 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2016-2017 The Zcash developers
+// Copyright (c) 2019 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -152,6 +154,10 @@ public:
 
         nForkStartHeight = 272991;
         nForkHeightRange = 5467;
+		
+        nEquihashForkHeight = 600001;
+        nEquihashNnew = 192;
+		nEquihashKnew = 7;
     }
 };
 static CMainParams mainParams;
@@ -236,6 +242,9 @@ public:
 
         nForkStartHeight = 10;
         nForkHeightRange = 300;
+		nEquihashForkHeight = 500;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CTestNetParams testNetParams;
@@ -305,6 +314,10 @@ public:
 
         nForkStartHeight = 0;
         nForkHeightRange = 0;
+		
+        nEquihashForkHeight = 100;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CRegTestParams regTestParams;
