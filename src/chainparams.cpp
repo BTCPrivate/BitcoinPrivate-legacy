@@ -51,7 +51,6 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
-
         consensus.nPowDifficultyBombHeight = 600000;
         consensus.nHeightDiffBombRemoved = 599999;
 
