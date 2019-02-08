@@ -246,7 +246,10 @@ public:
             0,
             0
         };
-		
+	    
+	nForkStartHeight = 10;
+        nForkHeightRange = 0;
+	    
         nEquihashForkHeight = 5;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
