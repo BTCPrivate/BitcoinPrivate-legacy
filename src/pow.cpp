@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2016-2017 The Zcash developers
+// Copyright (c) 2018 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -105,8 +107,20 @@ unsigned int CalculateNextWorkRequired(arith_uint256 bnAvg,
 
 bool CheckEquihashSolution(const CBlockHeader *pblock, const CChainParams& params)
 {
-    unsigned int n = params.EquihashN();
-    unsigned int k = params.EquihashK();
+    uint64_t forkHeight = params.EquihashForkHeight();
+    unsigned int solution_size = pblock->nSolution.size();
+
+    unsigned int n;
+    unsigned int k;
+    if (solution_size == params.EquihashSolutionWidth(forkHeight)) {
+        n = params.EquihashN(forkHeight);
+        k = params.EquihashK(forkHeight);
+    } else if (forkHeight > 0 && solution_size == params.EquihashSolutionWidth(forkHeight - 1)) {
+        n = params.EquihashN(forkHeight - 1);
+        k = params.EquihashK(forkHeight - 1);
+    } else {
+        return error("CheckEquihashsolution(): invalid solution size");
+    }
 
     // Hash state
     crypto_generichash_blake2b_state state;
