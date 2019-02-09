@@ -3130,8 +3130,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
                          REJECT_INVALID, "version-too-low");
 
     // Check Equihash solution is valid
-	if (fCheckPOW) {
-        const CChainParams& chainparams = Params();
+	      if (fCheckPOW) {
+            const CChainParams& chainparams = Params();
 
         int oldSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight());
         int newSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight() - 1);
@@ -3272,6 +3272,12 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
                                    __func__, block.nSolution.size(), chainParams.EquihashSolutionWidth(nHeight)),
                              REJECT_INVALID, "equihash-solution-size");
 
+
+    // Check that equihash solution has the proper length
+    if (fCheckPow && block.nSolution.size() != chainParams.EquihashSolutionWidth(nHeight))
+        return state.Invalid(error("%s: incorrect equihash solution size have %d need %d",
+                                   __func__, block.nSolution.size(), chainParams.EquihashSolutionWidth(nHeight)),
+                             REJECT_INVALID, "equihash-solution-size");
 
     if (fCheckpointsEnabled)
     {

@@ -210,7 +210,7 @@ UniValue generate(const UniValue& params, bool fHelp)
 
     while (nHeight < nHeightEnd)
     {
-		n = chainparams.EquihashN(nHeight + 1);
+		    n = chainparams.EquihashN(nHeight + 1);
         k = chainparams.EquihashK(nHeight + 1);
 #ifdef ENABLE_WALLET
         std::unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));

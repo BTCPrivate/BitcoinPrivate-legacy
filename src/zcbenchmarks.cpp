@@ -404,4 +404,3 @@ double benchmark_connectblock_slow()
     SelectParamsFromCommandLine();
 
     return duration;
-}
