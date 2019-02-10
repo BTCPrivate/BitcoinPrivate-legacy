@@ -1,6 +1,5 @@
 // Copyright (c) 2016 Jack Grigg
 // Copyright (c) 2016 The Zcash developers
-// Copyright (c) 2018 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -275,7 +274,6 @@ std::vector<unsigned char> FullStepRow<WIDTH>::GetIndices(size_t len, size_t len
 }
 
 template<size_t WIDTH>
-
 bool HasCollision(StepRow<WIDTH>& a, StepRow<WIDTH>& b, int l)
 {
     // This doesn't need to be constant time.
@@ -793,30 +791,6 @@ template bool Equihash<200,9>::OptimisedSolve(const eh_HashState& base_state,
                                               const std::function<bool(EhSolverCancelCheck)> cancelled);
 #endif
 template bool Equihash<200,9>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln);
-
-// Explicit instantiations for Equihash<192,7>
-template int Equihash<192,7>::InitialiseState(eh_HashState& base_state);
-#ifdef ENABLE_MINING
-template bool Equihash<192,7>::BasicSolve(const eh_HashState& base_state,
-                                          const std::function<bool(std::vector<unsigned char>)> validBlock,
-                                          const std::function<bool(EhSolverCancelCheck)> cancelled);
-template bool Equihash<192,7>::OptimisedSolve(const eh_HashState& base_state,
-                                              const std::function<bool(std::vector<unsigned char>)> validBlock,
-                                              const std::function<bool(EhSolverCancelCheck)> cancelled);
-#endif
-template bool Equihash<192,7>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln);
-
-// Explicit instantiations for Equihash<144,5>
-template int Equihash<144,5>::InitialiseState(eh_HashState& base_state);
-#ifdef ENABLE_MINING
-template bool Equihash<144,5>::BasicSolve(const eh_HashState& base_state,
-                                          const std::function<bool(std::vector<unsigned char>)> validBlock,
-                                          const std::function<bool(EhSolverCancelCheck)> cancelled);
-template bool Equihash<144,5>::OptimisedSolve(const eh_HashState& base_state,
-                                              const std::function<bool(std::vector<unsigned char>)> validBlock,
-                                              const std::function<bool(EhSolverCancelCheck)> cancelled);
-#endif
-template bool Equihash<144,5>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln);
 
 // Explicit instantiations for Equihash<96,5>
 template int Equihash<96,5>::InitialiseState(eh_HashState& base_state);
