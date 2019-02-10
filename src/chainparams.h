@@ -103,9 +103,8 @@ public:
 
     uint64_t ForkStartHeight() const { return nForkStartHeight; };
     uint64_t ForkHeightRange() const { return nForkHeightRange; };
-
     uint64_t EquihashForkHeight() const { return nEquihashForkHeight; };
-
+  
 protected:
     CChainParams() {}
 

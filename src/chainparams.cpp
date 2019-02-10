@@ -62,6 +62,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+        consensus.nUnmovedBurnHeight = 480000;
+        consensus.zResetHeight = 455500;
 
         pchMessageStart[0] = 0xa8;
         pchMessageStart[1] = 0xea;
@@ -190,6 +192,9 @@ public:
 
         consensus.nPowDifficultyBombHeight = 600000;
 
+        consensus.nUnmovedBurnHeight = 480000;
+        consensus.zResetHeight = 455500;
+
         pchMessageStart[0] = 0xf6;
         pchMessageStart[1] = 0x1b;
         pchMessageStart[2] = 0xf6;
@@ -278,6 +283,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 999999999999ULL;
 
         consensus.nPowDifficultyBombHeight = 600000;
+        consensus.nUnmovedBurnHeight = 480000;
+        consensus.zResetHeight = 455500;
 
         pchMessageStart[0] = 0xaa;
         pchMessageStart[1] = 0xe8;
@@ -314,7 +321,7 @@ public:
             0
         };
 
-        nForkStartHeight = 0;
+        nForkStartHeight = 50;
         nForkHeightRange = 0;
 
         nEquihashForkHeight = 100;

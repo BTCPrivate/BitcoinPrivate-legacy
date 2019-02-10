@@ -102,8 +102,6 @@ void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 string AccountFromValue(const UniValue& value)
 {
     string strAccount = value.get_str();
-    if (strAccount != "")
-        throw JSONRPCError(RPC_WALLET_ACCOUNTS_UNSUPPORTED, "Accounts are unsupported");
     return strAccount;
 }
 
