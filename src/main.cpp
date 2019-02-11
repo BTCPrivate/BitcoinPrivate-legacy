@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2016-2017 The Zcash developers
+// Copyright (c) 2018 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -3128,9 +3130,21 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
                          REJECT_INVALID, "version-too-low");
 
     // Check Equihash solution is valid
-    if (fCheckPOW && !CheckEquihashSolution(&block, Params()))
-        return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
-                         REJECT_INVALID, "invalid-solution");
+    if (fCheckPOW) {
+        const CChainParams& chainparams = Params();
+
+        int oldSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight());
+        int newSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight() - 1);
+
+        if (block.nSolution.size() != oldSize && block.nSolution.size() != newSize)
+            return state.DoS(100, error("CheckBlockHeader(): Equihash solution has invalid size have %d need [%d, %d]",
+                                        block.nSolution.size(), oldSize, newSize),
+                             REJECT_INVALID, "invalid-solution-size");
+
+        if (!CheckEquihashSolution(&block, chainparams))
+            return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
+                             REJECT_INVALID, "invalid-solution");
+    }
 
     // Check proof of work matches claimed amount
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
@@ -3220,7 +3234,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
     return true;
 }
 
-bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex * const pindexPrev)
+bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex * const pindexPrev, bool fCheckPow)
 {
     const CChainParams& chainParams = Params();
     const Consensus::Params& consensusParams = chainParams.GetConsensus();
@@ -3252,6 +3266,12 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
         return state.Invalid(error("%s: block's timestamp is too early", __func__),
                              REJECT_INVALID, "time-too-old");
+
+    // Check that equihash solution has the proper length
+    if (fCheckPow && block.nSolution.size() != chainParams.EquihashSolutionWidth(nHeight))
+        return state.Invalid(error("%s: incorrect equihash solution size have %d need %d",
+                                   __func__, block.nSolution.size(), chainParams.EquihashSolutionWidth(nHeight)),
+                             REJECT_INVALID, "equihash-solution-size");
 
     if (fCheckpointsEnabled)
     {
@@ -3567,7 +3587,7 @@ bool TestBlockValidity(CValidationState &state, const CBlock& block, CBlockIndex
     auto verifier = libzcash::ProofVerifier::Disabled();
 
     // NOTE: CheckBlockHeader is called by CheckBlock
-    if (!ContextualCheckBlockHeader(block, state, pindexPrev))
+    if (!ContextualCheckBlockHeader(block, state, pindexPrev, fCheckPOW))
         return false;
 
     if (!CheckBlock(block, state, verifier, fCheckPOW, fCheckMerkleRoot))

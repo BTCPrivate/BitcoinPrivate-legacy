@@ -1,5 +1,8 @@
+
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2016-2017 The Zcash developers
+// Copyright (c) 2018 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -154,6 +157,10 @@ public:
 
         nForkStartHeight = 272991;
         nForkHeightRange = 5467;
+
+        nEquihashForkHeight = 600001;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CMainParams mainParams;
@@ -170,9 +177,10 @@ public:
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 400;
-        consensus.powLimit = uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.prePowLimit = consensus.powLimit;
-        assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
+        consensus.nPowAveragingWindow = 1;
+//        assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
         consensus.fPowAllowMinDifficultyBlocks = true;
 
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -197,17 +205,16 @@ public:
         nPruneAfterHeight = 1000;
 
         //! Modify the testnet genesis block so the timestamp is valid for a later start.
-        genesis.nTime = 1479443947;
+        genesis.nTime = 1527600786;
         genesis.nBits = 0x2007ffff;
-        genesis.nNonce = uint256S("0x0000000000000000000000000000000000000000000000000000000000000013");
-        genesis.nSolution = ParseHex("002b24e10a5d2ab32b053a20ca6ebed779be1d935b1500eeea5c87aec684c6f934196fdfca6539de0cf1141544bffc5c0d1d4bab815fb5d8c2b195ccdf0755599ee492b9d98e3b79a178949f45485ad80dba38ec0461102adaa369b757ebb2bf8d75b5f67a341d666406d862a102c69800f20a7075be360a7eb2d315d78e4ce32c741f3baf7bf3e1e651976f734f367b1f126f62503b34d06d6e99b3659b2a47f5cfcf71c87e24e5023151d4af87454e7638a19b846350dd5fbc53e4ce1cce2597992b36cbcae0c24717e412c8df9ddca3e90c7629bd8c157c66d8906486943cf78e24d55dd4152f45eff49acf9fb9fddef81f2ee55892b38db940c404eaacf819588b83f0f761f1ba5b31a0ea1f8f4c5210638bbb59a2d8ddff9535f546b42a7eac5f3ee87616a075bddc3118b7f2c041f4b1e8dbcd11eea95835403066b5bb50cd23122dcb12166d75aafcfc1ca8f30580b4d48a5aa305657a06b4b650ed4633f2fa496235082feff65f70e19871f41b70632b53e57ddf38c207d631e5a56fa50bb71150f99427f73d82a439a5f70dfc7d8bbfc39d330ca7924527a5deb8950b9fa7020cfde5e07b84546e96764519ef6dd3fdc3a974abd342bdc7e4ee76bc11d5519541015afba1a0517fd347196aa326b0905a5916b83515c16f8f13105479c29f1eff3bc024ddbb07dcc672247cedc0d4ba32332ead0f13c58f50170642e16e076c34f5e75e3e8f5ac7f5238d67564fd385efecf972b0abf939a99bc7ef8f3a21cac21d2168706bbad3f4af66bb01cf61cfbc352a23797b62dcb5480bf2b7b277af233f5ce42a144d47119a89e1d114fa0bec2f13475b6b1df907bc3a429f1771afa3857bf16bfca3f76a5df14da62dc157fff4225bda73c3cfefa989edc24673bf932a024593da4c38b1a4628dd77ad919f4f7b7fb76976e696db69c89016ab30d9aa2d509f78d913d00ca9ac881aa759fc019b8c5e3eac6fddb4e0f044595e10d4997e29c79800f77cf1d97583d534db0f2726cba3739e7371eeffa2aca12b0d290ac45f44973f32f7675a5b49c94c4b608da2926555d16b7eb3670e12345a63f88797e5a5e21252c2c9463d7896001031a81bac0354336b35c5a10c93d9ae3054f6f6e4492f7c1f09a9d75034d5d0b220a9bb231e583659d5b6923a4e879326194de5c9805a02cb648508a8f9b6cd26dc17d322a478c1c599e1ec3adf2da6ce7a7e3a073b55cf30cf6b124f7700409abe14af8c60ab178579623916f165dbfd26f37056bf33c34f3af30939e1277376e4c5cba339f36381a05ef6481db033fb4c07a19e8655f8b12f9ab3c602e127b4ab1ee48e1c6a91382b54ed36ef9bb21b3bfa80a9107864dcb594dcad250e402b312607e648639631a3d1aeb17cfe3370202720ca8a46db15af92e8b46062b5bd035b24c35a592e5620d632faf1bf19a86df179fe52dd4cdbecd3cb7a336ca7489e4d1dc9433f1163c89d88c5eac36fc562496dc7583fe67c559c9a71cf89e9a0a59d5a14764926852d44a88d2ddb361d612ec06f9de874473eaf1d36b3a41911ac072b7826e6acea3d8425dc271833dba2ec17d1a270e49becbf21330ba2f0edc4b05f4df01623f3c82246ae23ea2c022434ef09611aa19ba35c3ecbad965af3ad9bc6c9b0d3b059c239ffbf9272d0150c151b4510d659cbd0e4a9c32945c612681b70ee4dcbeefeacde630b127115fd9af16cef4afefe611c9dfcc63e6833bf4dab79a7e1ae3f70321429557ab9da48bf93647830b5eb5780f23476d3d4d06a39ae532da5b2f30f151587eb5df19ec1acf099e1ac506e071eb52c3c3cc88ccf6622b2913acf07f1b772b5012e39173211e51773f3eb42d667fff1d902c5c87bd507837b3fd993e70ac9706a0");
+        genesis.nNonce = uint256S("0000000000000000000000000000000000000000000000000000000000000006");
+        genesis.nSolution = ParseHex("00596d6b34675ec5b6cde00c8c6149cd57b1159aa7401864f4812f83c5ef10f6a41645890dab4bfb97bf208c5eea90106c62e2d353f4844f1a2587a4da14e327f54e910c9eaf27057d8541cdd0cc6e8281b9a9830492b85e2c49c6c34228f140b157417d7a1e6e489c0ad515a96c50466bd6b184b631c9ae162b86d2c02b1f6e2cdc0727daabb07dc2d7fb3bce35d16699984a50a69f736196077b4c65e60b25e2f81efcc83f20db0130237474c79359126d218fc3a0d97109dbbb72733a67421964202fbb907e53d0256e70e9021e086ba802609b07f52ff0cba0f840acedcd5b0e4a9b78988102a743a4a4662aefb5e8c93a5f72d9273ff5ffd98602ed491eb812930bfdc5305eca05f7d55a91d30aa50f0ea6a4ef03efc2e4904825ff6fd08e1d73dee68031a147a745dbe26be0bf9425c757a78d27ff365d8b711a879bcf2b010deb6f19310270bd6b1ef31d27ab0183d0c712ce07f77fc475897f6a3f89c68bdea23a2a1844e0ed732c0ff1ea033ec235d4dd6a3176019202ccc418e7d4103ab8c35509733d88eab8bd7b81621910ee0d4f6c0a5d6fcc55c679de391a46ee33c7e70264ec677c4605bcfb75928e99c8392110a72cd5350c93fd68f5556e78f764815656706dc9517e4f73b216eb6c0c7048dce0724482678b501339b0b3171ead3e63d7abaa6fc1b7ecb564e16fd1c3426bd27de21203e5f49b13470342a676d11317c92add495dae964b31484265498f677dccc7a33986c17635b6c55929320fee4635aa8c2637cfa693dc723bcb37ad57bfbf1434e9ac7db0d5fb5be71314ac2cb21d5f61db1ff12703f889031396ed8d75a3a95dd86415dfd263ff1131091f07bfa9ca1aea9e46b84be070abeab0fb7d333f05b5509e74ed6bb58b8e624087d71710cb651f6a9a13ddc217354ba8219e08c4e48536e7e1c065d9da950096a655dce913878ec4e53093cf5701578f2bde402d94eb2e639f55bf07efd3cdeca23a29b38fd19e121f347bf1a05578ff4d24635d4bb702691838f2cca42bda0768e59727f94648d49cdda8de424a0398f3650d47155dac50da21dad9820feac063a99a33174462296cc7375735cfd9c7c1d484c938e299c7dc3ee288143131bbab60af230d4a4187d1ebfafa2c91f29a66392509fafea3042b97c965982140eb2219773469030159a0986f1a157fb64a25aaf9c0688973e79b45dc042e52c25ea5009d90c805f04572074335c2be9547159dbc1e15859eee935165f2b7c5b3dd89acbfd3c744d56b34afe18a734ee81894a168330ec99898e2ad042a036cccd1a36ece9c724cf476d404a65c4d8b1e2cbbe52c905b12abb5db83be05efe15723001c7a031e7e65230e2e4e4590df79e816e12fc684f51b04dc56e9d7c27da9a2cd9ead17ac1e58ae6798651f2cd80369547a0bd24f43fec3613784c0cc17bef71e4af22a2384a6728cc7fec4982c568671f12f63b0dbed8d11c0f5edcbc851991334b12da00d9cb5334f18a4f71915713cde326b93c31bd5d9c1501eb22d99b4650e087676d72ecd09dd45586561a050628365937fafa52b158cf81adce6e3cdee46e9626c85f28e0f59397f435e529ac4965d30d0afb9812d72407ec5239cfb3d56d8b6077866befb41f427c7dd7ee782c34e3d983d047edb71e48befcf582262bec7670298c66e690d5112760944486fdac7be99296e047be9369f7e555f5b06587123f541f6451cfd71e57f71173c87b51c08e80b2397f8c69dc3c7528576551ccfc6f2c7501f4df00a331855ee03e9f4ed9f021626ee3d6e36793b650336e5054904ebffedf83e367082381aee40c43422d81c0f0e4a00478673864dc31086ecb661e9dafac47e3b8697f4f52aeeefaccda3fd42f6e4194ab5186b7e");
+		
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x03e1c4bb705c871bf9bfda3e74b7f8f86bff267993c215a89d5795e3708e5e1f"));
+        assert(consensus.hashGenesisBlock == uint256S("0x05098b06c3be62b6b7ebcb2ffee3dad6989c4b613cb0be3e09f8df0e4ec65d2e"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("btcprivate.org", "dnsseed.testnet.btcprivate.org"));
-        vSeeds.push_back(CDNSSeedData("btcprivate.co", "dnsseed.testnet1.btcprivate.co"));
 
         // guarantees the first 2 characters, when base58 encoded, are "n1"
         base58Prefixes[PUBKEY_ADDRESS]     = {0x19,0x57};
@@ -225,7 +232,7 @@ public:
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
-        fMiningRequiresPeers = true;
+        fMiningRequiresPeers = false;
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
@@ -240,7 +247,11 @@ public:
         };
 
         nForkStartHeight = 10;
-        nForkHeightRange = 300;
+        nForkHeightRange = 0;
+
+        nEquihashForkHeight = 5;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CTestNetParams testNetParams;
@@ -312,6 +323,10 @@ public:
 
         nForkStartHeight = 50;
         nForkHeightRange = 0;
+
+        nEquihashForkHeight = 100;
+        nEquihashNnew = 192;
+        nEquihashKnew = 7;
     }
 };
 static CRegTestParams regTestParams;
