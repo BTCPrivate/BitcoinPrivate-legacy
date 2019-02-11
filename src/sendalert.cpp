@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The Zcash developers
-// Copyright (c) 2018 The Bitcoin Private developers
+// Copyright (c) 2017-2019 The Bitcoin Private developers
 // Original code from: https://gist.github.com/laanwj/0e689cfa37b52bcbbb44
 
 /*
