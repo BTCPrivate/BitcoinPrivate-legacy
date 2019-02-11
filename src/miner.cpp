@@ -700,12 +700,10 @@ void static BitcoinMiner()
     unsigned int k = chainparams.EquihashK(pindexPrev->nHeight + 1);
 
     std::string solver = GetArg("-equihashsolver", "default");
-    
     // TODO: parameterize n & k tromp solver and remove temporary workaround below
     if (n == 200 && k == 9) solver = "default";
     if (n == 192 && k == 7) solver = "tromp";
     assert(solver == "tromp" || solver == "default");
-    
     LogPrint("pow", "Using Equihash solver \"%s\" with n = %u, k = %u\n", solver, n, k);
 
     std::mutex m_cs;
