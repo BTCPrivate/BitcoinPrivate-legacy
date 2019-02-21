@@ -34,7 +34,6 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         proofOfWorkLimit = UintToArith256(params.powLimit);
 
     unsigned int nProofOfWorkLimit = proofOfWorkLimit.GetCompact();
-    unsigned int nProofOfWorkBomb  = UintToArith256(uint256S("000000000000000000000000000000000000000000000000000000000000ffff")).GetCompact();
 
     // Genesis block
     if (pindexLast == NULL)
@@ -47,10 +46,6 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     // right post fork
     else if(!isForkBlock(nHeight) && isForkBlock(nHeight - params.nPowAveragingWindow))
         return nProofOfWorkLimit;
-
-    // difficulty bomb
-    else if(pindexLast->nHeight > params.nPowDifficultyBombHeight)
-        return nProofOfWorkBomb;
 
     // Find the first block in the averaging interval
     const CBlockIndex* pindexFirst = pindexLast;
