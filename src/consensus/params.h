@@ -78,6 +78,7 @@ struct Params {
     int64_t nPowMaxAdjustUp;
     int64_t nPowTargetSpacing;
 
+    int nPowDifficultyBombHeight;
     int nUnmovedBurnHeight;
     int zResetHeight;
 
