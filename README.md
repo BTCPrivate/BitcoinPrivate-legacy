@@ -1,7 +1,7 @@
 Bitcoin Private
 ----------------
 
-**Bitcoin Private v1.0.13**
+**Bitcoin Private v1.0.14**
 
 P2P Port: 7933
 
