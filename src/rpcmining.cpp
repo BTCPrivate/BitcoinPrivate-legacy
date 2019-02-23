@@ -1,5 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2016-2017 The Zcash developers
+// Copyright (c) 2018 The Bitcoin Private developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -202,10 +204,15 @@ UniValue generate(const UniValue& params, bool fHelp)
     }
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
-    unsigned int n = Params().EquihashN();
-    unsigned int k = Params().EquihashK();
+    const CChainParams& chainparams = Params();
+    unsigned int n;
+    unsigned int k;
+
     while (nHeight < nHeightEnd)
     {
+        n = chainparams.EquihashN(nHeight + 1);
+        k = chainparams.EquihashK(nHeight + 1);
+
 #ifdef ENABLE_WALLET
         std::unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
 #else
@@ -250,7 +257,7 @@ UniValue generate(const UniValue& params, bool fHelp)
                 solutionTargetChecks.increment();
                 return CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus());
             };
-            bool found = EhBasicSolveUncancellable(n, k, curr_state, validBlock);
+            bool found = EhOptimisedSolveUncancellable(n, k, curr_state, validBlock);
             ehSolverRuns.increment();
             if (found) {
                 goto endloop;
