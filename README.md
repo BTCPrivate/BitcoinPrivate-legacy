@@ -1,7 +1,7 @@
 Bitcoin Private
 ----------------
 
-**Bitcoin Private v1.0.13**
+**Bitcoin Private v1.0.14**
 
 P2P Port: 7933
 
@@ -195,7 +195,7 @@ https://github.com/zcash/zcash/wiki/1.0-User-Guide
 ### Want to participate in development?
 
 * Code review is welcome!
-* If you want to get to know us join our Discord: https://discord.gg/9xezcaK
+* If you want to get to know us join our Discord: https://discord.gg/GM5Vetd
 * We have a brief guide for joining the Bitcoin private testnet [here](doc/testnet.md)
 
 
