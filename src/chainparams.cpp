@@ -249,7 +249,7 @@ public:
         nForkStartHeight = 10;
         nForkHeightRange = 0;
 
-        nEquihashForkHeight = 5;
+        nEquihashForkHeight = 50;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
     }
