@@ -3131,8 +3131,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
     if (fCheckPOW) {
         const CChainParams& chainparams = Params();
 
-        int oldSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight());
-        int newSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight() - 1);
+        int oldSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight() - 1);
+        int newSize = chainparams.EquihashSolutionWidth(chainparams.EquihashForkHeight());
 
         if (block.nSolution.size() != oldSize && block.nSolution.size() != newSize)
             return state.DoS(100, error("CheckBlockHeader(): Equihash solution has invalid size have %d need [%d, %d]",
