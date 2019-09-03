@@ -155,7 +155,7 @@ public:
         nForkStartHeight = 272991;
         nForkHeightRange = 5467;
 
-        nEquihashForkHeight = 600001;
+        nEquihashParamsUpdate = 600001;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
     }
@@ -248,7 +248,7 @@ public:
         nForkStartHeight = 10;
         nForkHeightRange = 0;
 
-        nEquihashForkHeight = 50;
+        nEquihashParamsUpdate = 50;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
     }
@@ -323,7 +323,7 @@ public:
         nForkStartHeight = 50;
         nForkHeightRange = 0;
 
-        nEquihashForkHeight = 100;
+        nEquihashParamsUpdate = 100;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
     }

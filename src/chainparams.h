@@ -66,7 +66,7 @@ public:
 
     unsigned int EquihashN(int height) const
     {
-        if(height >= nEquihashForkHeight)
+        if(height >= nEquihashParamsUpdate)
             return nEquihashNnew;
 
         return nEquihashN;
@@ -74,7 +74,7 @@ public:
 
     unsigned int EquihashK(int height) const
     {
-        if(height >= nEquihashForkHeight)
+        if(height >= nEquihashParamsUpdate)
             return nEquihashKnew;
 
         return nEquihashK;
@@ -102,7 +102,7 @@ public:
     uint64_t ForkStartHeight() const { return nForkStartHeight; };
     uint64_t ForkHeightRange() const { return nForkHeightRange; };
 
-    uint64_t EquihashForkHeight() const { return nEquihashForkHeight; };
+    uint64_t EquihashForkHeight() const { return nEquihashParamsUpdate; };
 
 protected:
     CChainParams() {}
@@ -133,7 +133,7 @@ protected:
     uint64_t nForkStartHeight;
     uint64_t nForkHeightRange;
 
-    uint64_t nEquihashForkHeight;
+    uint64_t nEquihashParamsUpdate;
     unsigned int nEquihashNnew;
     unsigned int nEquihashKnew;
 };
