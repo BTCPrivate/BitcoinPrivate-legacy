@@ -152,8 +152,13 @@ public:
                             //   total number of tx / (checkpoint block height / (24 * 24))
         };
 
+        // ZCL + BTC -> BTCP
         nForkStartHeight = 272991;
         nForkHeightRange = 5467;
+
+        // LWMA-1
+        consensus.lwmaActivationHeight = -1; // TODO set me
+        consensus.lwmaAveragingWindow = 120;
     }
 };
 static CMainParams mainParams;
@@ -239,8 +244,13 @@ public:
             0
         };
 
+        // ZCL + BTC -> BTCP
         nForkStartHeight = 10;
         nForkHeightRange = 300;
+
+        // LWMA-1
+        consensus.lwmaActivationHeight = 130;
+        consensus.lwmaAveragingWindow = 120;
     }
 };
 static CTestNetParams testNetParams;
@@ -310,8 +320,14 @@ public:
             0
         };
 
+
+        // ZCL + BTC -> BTCP
         nForkStartHeight = 50;
         nForkHeightRange = 0;
+
+        // LWMA-1
+        consensus.lwmaActivationHeight = 250;
+        consensus.lwmaAveragingWindow = 120;
     }
 };
 static CRegTestParams regTestParams;
