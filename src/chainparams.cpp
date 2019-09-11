@@ -155,7 +155,7 @@ public:
         nForkStartHeight = 272991;
         nForkHeightRange = 5467;
 
-        nEquihashParamsUpdate = 600001;
+        nEquihashParamsUpdate = 610000;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
     }
