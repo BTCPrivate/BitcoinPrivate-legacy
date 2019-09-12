@@ -1695,7 +1695,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
             if (coins->IsCoinBase()) {
                 // Ensure that coinbases are matured
-                if (nSpendHeight - coins->nHeight < COINBASE_MATURITY) {
+                if (nSpendHeight - coins->nHeight < consensusParams.coinbaseMaturity) {
                     return state.Invalid(
                         error("CheckInputs(): tried to spend coinbase at depth %d", nSpendHeight - coins->nHeight),
                         REJECT_INVALID, "bad-txns-premature-spend-of-coinbase");
@@ -3245,7 +3245,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     // Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-        return state.DoS(100, error("%s: incorrect proof of work", __func__),
+        return state.DoS(100, error("%s: incorrect proof of work (nHeight: %d, hash: %s)", __func__, nHeight, hash.ToString()),
                          REJECT_INVALID, "bad-diffbits");
 
     // Check timestamp against prev

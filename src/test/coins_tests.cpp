@@ -755,8 +755,9 @@ BOOST_AUTO_TEST_CASE(coins_coinbase_spends)
     mtx2.vin[0].nSequence = 0;
 
     {
+        auto consensus = Params().GetConsensus();
         CTransaction tx2(mtx2);
-        BOOST_CHECK(Consensus::CheckTxInputs(tx2, state, cache, 100+COINBASE_MATURITY, Params().GetConsensus()));
+        BOOST_CHECK(Consensus::CheckTxInputs(tx2, state, cache, 100+consensus.coinbaseMaturity, consensus));
     }
 
     mtx2.vout.resize(1);
@@ -768,10 +769,10 @@ BOOST_AUTO_TEST_CASE(coins_coinbase_spends)
         CTransaction tx2(mtx2);
 
         if(consensus.fCoinbaseMustBeProtected) {
-            BOOST_CHECK(!Consensus::CheckTxInputs(tx2, state, cache, 100+COINBASE_MATURITY, consensus));
+            BOOST_CHECK(!Consensus::CheckTxInputs(tx2, state, cache, 100+consensus.coinbaseMaturity, consensus));
             BOOST_CHECK(state.GetRejectReason() == "bad-txns-coinbase-spend-has-transparent-outputs");
         } else {
-            BOOST_CHECK(Consensus::CheckTxInputs(tx2, state, cache, 100+COINBASE_MATURITY, consensus));
+            BOOST_CHECK(Consensus::CheckTxInputs(tx2, state, cache, 100+consensus.coinbaseMaturity, consensus));
         }
     }
 }

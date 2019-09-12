@@ -32,6 +32,8 @@ struct BIP9Deployment {
  * Parameters that influence chain consensus.
  */
 struct Params {
+    int coinbaseMaturity;
+
     uint256 hashGenesisBlock;
 
     bool fCoinbaseMustBeProtected;
