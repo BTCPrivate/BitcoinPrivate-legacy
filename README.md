@@ -121,24 +121,36 @@ sudo make install DESTDIR=/mnt/c/btcp/BTCPrivate
 ```
 
 ### Mac
-Get dependencies:
+1. Install xcode
 ```{r, engine='bash'}
-# Install xcode
 xcode-select --install
-
+```
+2. Install HomeBrew
+```{r, engine='bash'}
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+```
+3. Install Dependencies with HomeBrew
+```{r, engine='bash'}
 brew install cmake autoconf libtool automake coreutils pkgconfig gmp wget
-
+```
+4. Install gcc5 with HomeBrew
+```{r, engine='bash'}
 brew install gcc5 --without-multilib
 ```
-
-Install:
+5. Change to BitcoinPrivate Directory
 ```{r, engine='bash'}
-# Build
+cd BitcoinPrivate
+```
+6. Build Bitcoin Private Daemon code
+```{r, engine='bash'}
 ./btcputil/build-mac.sh -j$(sysctl -n hw.physicalcpu)
-# fetch key
+```
+7. Fetch key & Params
+```{r, engine='bash'}
 ./btcputil/fetch-params.sh
-# Run
+```
+8. Run the Bitcoin Private Daemon that was just built
+```{r, engine='bash'}
 ./src/btcpd
 ```
 
