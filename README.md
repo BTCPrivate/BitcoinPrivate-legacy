@@ -120,7 +120,7 @@ If compiling using WSL, use the following command to build the executables in `c
 sudo make install DESTDIR=/mnt/c/btcp/BTCPrivate
 ```
 
-### Mac
+### Building for Mac
 1. Install xcode.
 ```{r, engine='bash'}
 xcode-select --install
