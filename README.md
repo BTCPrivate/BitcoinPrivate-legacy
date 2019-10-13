@@ -48,6 +48,13 @@ rpcallowip=127.0.0.1
 #addnode=dnsseed.btcprivate.co
 ```
 
+Get backup chain parameters (this will speed up syncing and is optional) 
+``` 
+cd ~/.btcprivate 
+wget https://params.btcprivate.org/chainstate.tar.gz 
+tar -zxvf chainstate.tar.gz 
+cd ~/BitcoinPrivate 
+```
 
 Run:
 ```
