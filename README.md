@@ -133,7 +133,7 @@ xcode-select --install
 ```{r, engine='bash'}
 brew install cmake autoconf libtool automake coreutils pkgconfig gmp wget
 ```
-4. Install gcc5 with HomeBrew.
+4. Install gcc5 with HomeBrew. (** IF USING XCODE 10+ remove --without-multilib flag**)
 ```{r, engine='bash'}
 brew install gcc5 --without-multilib
 ```
