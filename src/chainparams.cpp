@@ -161,12 +161,12 @@ public:
 
 
         // Equihash 192,7
-        nEquihashParamsUpdate = 615500;
+        nEquihashParamsUpdate = 620000;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
 
         // LWMA-1
-        lwmaActivationHeight = 615518;
+        lwmaActivationHeight = 620018;
         lwmaAveragingWindow = 120;
 
     }
@@ -264,12 +264,12 @@ public:
         nForkHeightRange = 0;
 
         // Equihash 192,7
-        nEquihashParamsUpdate = 30;
+        nEquihashParamsUpdate = 150;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
 
         // LWMA-1
-        lwmaActivationHeight = 48;
+        lwmaActivationHeight = 168;
         lwmaAveragingWindow = 120;
 
     }
