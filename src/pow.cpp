@@ -143,9 +143,6 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
     const int64_t height = pindexLast->nHeight;
     const arith_uint256 powLimit = UintToArith256(params.powLimit);
 
-    // 'New' coins should just give away first N blocks before using this algorithm.
-    if (height > chainparams.LwmaHeight() && height <= chainparams.LwmaHeight() + N) { return powLimit.GetCompact(); }
-
     arith_uint256 avgTarget, nextTarget;
     int64_t thisTimestamp, previousTimestamp;
     int64_t sumWeightedSolvetimes = 0, j = 0;
