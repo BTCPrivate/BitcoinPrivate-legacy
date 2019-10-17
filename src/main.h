@@ -429,7 +429,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
                 bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
 /** Context-dependent validity checks */
-bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex *pindexPrev);
+bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex *pindexPrev, bool fCheckPow = true);
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev);
 
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
@@ -587,7 +587,7 @@ std::string GetUTXOFileName(int nHeight);
 //
 inline bool isForkBlock(int nHeight)
 {
-    return (nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
+     return (forkHeightRange > 0 && nHeight > forkStartHeight && nHeight <= forkStartHeight + forkHeightRange);
 }
 
 inline bool looksLikeForkBlockHeader(const CBlockHeader& header)

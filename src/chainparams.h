@@ -9,6 +9,7 @@
 #include "chainparamsbase.h"
 #include "checkpoints.h"
 #include "consensus/params.h"
+#include "crypto/equihash.h"
 #include "primitives/block.h"
 #include "protocol.h"
 
@@ -62,8 +63,28 @@ public:
     bool RequireStandard() const { return fRequireStandard; }
     int64_t MaxTipAge() const { return nMaxTipAge; }
     int64_t PruneAfterHeight() const { return nPruneAfterHeight; }
-    unsigned int EquihashN() const { return nEquihashN; }
-    unsigned int EquihashK() const { return nEquihashK; }
+
+    unsigned int EquihashN(int height) const
+    {
+        if(height >= nEquihashParamsUpdate)
+            return nEquihashNnew;
+
+        return nEquihashN;
+    }
+
+    unsigned int EquihashK(int height) const
+    {
+        if(height >= nEquihashParamsUpdate)
+            return nEquihashKnew;
+
+        return nEquihashK;
+    }
+
+    unsigned int EquihashSolutionWidth(int height) const
+    {
+        return EhSolutionWidth(EquihashN(height), EquihashK(height));
+    }
+
     std::string CurrencyUnits() const { return strCurrencyUnits; }
     /** Make miner stop after a block is found. In RPC, don't return until nGenProcLimit blocks are generated */
     bool MineBlocksOnDemand() const { return fMineBlocksOnDemand; }
@@ -80,6 +101,10 @@ public:
 
     uint64_t ForkStartHeight() const { return nForkStartHeight; };
     uint64_t ForkHeightRange() const { return nForkHeightRange; };
+
+    uint64_t EquihashParamsUpdate() const { return nEquihashParamsUpdate; };
+    uint64_t LwmaHeight() const { return lwmaActivationHeight; };
+    uint64_t LwmaAveragingWin() const { return lwmaAveragingWindow; };
 
 protected:
     CChainParams() {}
@@ -109,6 +134,15 @@ protected:
 
     uint64_t nForkStartHeight;
     uint64_t nForkHeightRange;
+
+    uint64_t nEquihashParamsUpdate;
+    unsigned int nEquihashNnew;
+    unsigned int nEquihashKnew;
+
+    // LWMA-1
+    uint64_t lwmaActivationHeight;
+    int64_t lwmaAveragingWindow;
+
 };
 
 /**

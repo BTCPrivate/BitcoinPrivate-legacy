@@ -748,7 +748,8 @@ TEST(wallet_tests, CachedWitnessesCleanIndex) {
     wallet.AddSpendingKey(sk);
 
     // Generate a chain
-    size_t numBlocks = WITNESS_CACHE_SIZE + 10;
+    // Uses mainnet maturity. Otherwise, SelectParams(CBaseChainParams::TESTNET); coinbaseMaturity = 10;
+    size_t numBlocks = 100 + 10;
     blocks.resize(numBlocks);
     indices.resize(numBlocks);
     for (size_t i = 0; i < numBlocks; i++) {
