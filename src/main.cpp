@@ -1757,7 +1757,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
             if (coins->IsCoinBase()) {
                 // Ensure that coinbases are matured
-                if (nSpendHeight - coins->nHeight < COINBASE_MATURITY) {
+                if (nSpendHeight - coins->nHeight < consensusParams.coinbaseMaturity) {
                     return state.Invalid(
                         error("CheckInputs(): tried to spend coinbase at depth %d", nSpendHeight - coins->nHeight),
                         REJECT_INVALID, "bad-txns-premature-spend-of-coinbase");
@@ -3069,6 +3069,8 @@ bool ActivateBestChain(CValidationState &state, CBlock *pblock) {
     CBlockIndex *pindexNewTip = NULL;
     CBlockIndex *pindexMostWork = NULL;
     const CChainParams& chainParams = Params();
+    int nStopAtHeight = GetArg("-stopatheight", 0);
+    
     do {
         boost::this_thread::interruption_point();
 
@@ -3108,6 +3110,11 @@ bool ActivateBestChain(CValidationState &state, CBlock *pblock) {
             GetMainSignals().UpdatedBlockTip(pindexNewTip);
             uiInterface.NotifyBlockTip(hashNewTip);
         }
+        
+        if (nStopAtHeight && pindexNewTip && pindexNewTip->nHeight >= nStopAtHeight) StartShutdown();
+
+        if(ShutdownRequested())
+            break;
     } while(pindexMostWork != chainActive.Tip());
     CheckBlockIndex();
 
@@ -3362,9 +3369,21 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
                          REJECT_INVALID, "version-too-low");
 
     // Check Equihash solution is valid
-    if (fCheckPOW && !CheckEquihashSolution(&block, Params()))
-        return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
-                         REJECT_INVALID, "invalid-solution");
+    if (fCheckPOW) {
+        const CChainParams& chainparams = Params();
+
+        int oldSize = chainparams.EquihashSolutionWidth(chainparams.EquihashParamsUpdate() - 1);
+        int newSize = chainparams.EquihashSolutionWidth(chainparams.EquihashParamsUpdate());
+
+        if (block.nSolution.size() != oldSize && block.nSolution.size() != newSize)
+            return state.DoS(100, error("CheckBlockHeader(): Equihash solution has invalid size have %d need [%d, %d]",
+                                        block.nSolution.size(), oldSize, newSize),
+                             REJECT_INVALID, "invalid-solution-size");
+
+        if (!CheckEquihashSolution(&block, chainparams))
+            return state.DoS(100, error("CheckBlockHeader(): Equihash solution invalid"),
+                             REJECT_INVALID, "invalid-solution");
+    }
 
     // Check proof of work matches claimed amount
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
@@ -3372,6 +3391,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
                          REJECT_INVALID, "high-hash");
 
     // Check timestamp
+    const CChainParams& chainparams = Params();
     if (block.GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
         return state.Invalid(error("CheckBlockHeader(): block timestamp too far in the future"),
                              REJECT_INVALID, "time-too-new");
@@ -3454,7 +3474,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state,
     return true;
 }
 
-bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex * const pindexPrev)
+bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex * const pindexPrev, bool fCheckPow)
 {
     const CChainParams& chainParams = Params();
     const Consensus::Params& consensusParams = chainParams.GetConsensus();
@@ -3479,13 +3499,19 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     // Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-        return state.DoS(100, error("%s: incorrect proof of work", __func__),
+        return state.DoS(100, error("%s: incorrect proof of work (nHeight: %d, hash: %s)", __func__, nHeight, hash.ToString()),
                          REJECT_INVALID, "bad-diffbits");
 
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
         return state.Invalid(error("%s: block's timestamp is too early", __func__),
                              REJECT_INVALID, "time-too-old");
+
+    // Check that equihash solution has the proper length
+    if (fCheckPow && block.nSolution.size() != chainParams.EquihashSolutionWidth(nHeight))
+        return state.Invalid(error("%s: incorrect equihash solution size have %d need %d",
+                                   __func__, block.nSolution.size(), chainParams.EquihashSolutionWidth(nHeight)),
+                             REJECT_INVALID, "equihash-solution-size");
 
     if (fCheckpointsEnabled)
     {
@@ -3801,7 +3827,7 @@ bool TestBlockValidity(CValidationState &state, const CBlock& block, CBlockIndex
     auto verifier = libzcash::ProofVerifier::Disabled();
 
     // NOTE: CheckBlockHeader is called by CheckBlock
-    if (!ContextualCheckBlockHeader(block, state, pindexPrev))
+    if (!ContextualCheckBlockHeader(block, state, pindexPrev, fCheckPOW))
         return false;
 
     if (!CheckBlock(block, state, verifier, fCheckPOW, fCheckMerkleRoot))

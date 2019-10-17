@@ -640,6 +640,8 @@ void CWallet::IncrementNoteWitnesses(const CBlockIndex* pindex,
                                      const CBlock* pblockIn,
                                      ZCIncrementalMerkleTree& tree)
 {
+    const unsigned int maxWitnessCacheSize = Params().GetConsensus().coinbaseMaturity;
+
     {
         LOCK(cs_wallet);
         for (std::pair<const uint256, CWalletTx>& wtxItem : mapWallet) {
@@ -661,13 +663,13 @@ void CWallet::IncrementNoteWitnesses(const CBlockIndex* pindex,
                     if (nd->witnesses.size() > 0) {
                         nd->witnesses.push_front(nd->witnesses.front());
                     }
-                    if (nd->witnesses.size() > WITNESS_CACHE_SIZE) {
+                    if (nd->witnesses.size() > maxWitnessCacheSize) {
                         nd->witnesses.pop_back();
                     }
                 }
             }
         }
-        if (nWitnessCacheSize < WITNESS_CACHE_SIZE) {
+        if (nWitnessCacheSize < maxWitnessCacheSize) {
             nWitnessCacheSize += 1;
         }
 
@@ -3631,7 +3633,8 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!IsCoinBase())
         return 0;
-    return max(0, (COINBASE_MATURITY+1) - GetDepthInMainChain());
+    auto params = Params().GetConsensus();
+    return max(0, (params.coinbaseMaturity+1) - GetDepthInMainChain());
 }
 
 
