@@ -52,6 +52,7 @@ public:
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.nPowDifficultyBombHeight = 600000;
+        consensus.nHeightDiffBombRemoved = 599999;
 
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
@@ -183,9 +184,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
         consensus.nPowDifficultyBombHeight = 600000;
+        consensus.nHeightDiffBombRemoved = 599999;
 
-        consensus.nUnmovedBurnHeight = 475000;
-        consensus.zResetHeight = 450500;
+        consensus.nUnmovedBurnHeight = 480000;
+        consensus.zResetHeight = 455500;
 
         pchMessageStart[0] = 0xf6;
         pchMessageStart[1] = 0x1b;
@@ -272,9 +274,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 999999999999ULL;
 
         consensus.nPowDifficultyBombHeight = 600000;
+        consensus.nHeightDiffBombRemoved = 599999;
 
-        consensus.nUnmovedBurnHeight = 500;
-        consensus.zResetHeight = 300;
+        consensus.nUnmovedBurnHeight = 480000;
+        consensus.zResetHeight = 455500;
 
         pchMessageStart[0] = 0xaa;
         pchMessageStart[1] = 0xe8;
