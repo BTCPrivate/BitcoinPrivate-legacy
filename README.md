@@ -1,7 +1,7 @@
 Bitcoin Private
 ----------------
 
-**Bitcoin Private v1.0.14**
+**Bitcoin Private v1.0.15**
 
 P2P Port: 7933
 
@@ -48,6 +48,15 @@ rpcallowip=127.0.0.1
 #addnode=dnsseed.btcprivate.co
 ```
 
+Get backup chain parameters (this will speed up syncing and is optional)
+(Ideally this step would be skipped to ensure integrity throughout the network)
+(However, this is a backup from the official Electrumx server 29th September 2019)
+``` 
+cd ~/.btcprivate 
+wget https://params.btcprivate.org/chainstate.tar.gz 
+tar -zxvf chainstate.tar.gz 
+cd ~/BitcoinPrivate 
+```
 
 Run:
 ```
@@ -120,25 +129,41 @@ If compiling using WSL, use the following command to build the executables in `c
 sudo make install DESTDIR=/mnt/c/btcp/BTCPrivate
 ```
 
-### Mac
-Get dependencies:
+### Building for Mac
+1. Install xcode.
 ```{r, engine='bash'}
-# Install xcode
 xcode-select --install
-
+```
+2. Install HomeBrew.
+```{r, engine='bash'}
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+```
+3. Install Dependencies with HomeBrew.
+```{r, engine='bash'}
 brew install cmake autoconf libtool automake coreutils pkgconfig gmp wget
-
+```
+4. Install gcc5 with HomeBrew. (** IF USING XCODE 10+ remove --without-multilib flag**)
+```{r, engine='bash'}
 brew install gcc5 --without-multilib
 ```
-
-Install:
+5. Clone the Bitcoin Private repo to your computer.
 ```{r, engine='bash'}
-# Build
+git clone https://github.com/BTCPrivate/BitcoinPrivate.git
+```
+6. Change to BitcoinPrivate Directory.
+```{r, engine='bash'}
+cd BitcoinPrivate
+```
+7. Build Bitcoin Private Daemon code.
+```{r, engine='bash'}
 ./btcputil/build-mac.sh -j$(sysctl -n hw.physicalcpu)
-# fetch key
+```
+8. Fetch key & Params.
+```{r, engine='bash'}
 ./btcputil/fetch-params.sh
-# Run
+```
+9. Run the Bitcoin Private Daemon that was just built.
+```{r, engine='bash'}
 ./src/btcpd
 ```
 
