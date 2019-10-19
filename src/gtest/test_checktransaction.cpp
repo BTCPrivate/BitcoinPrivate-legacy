@@ -44,8 +44,9 @@ public:
 };
 
 
-CMutableTransaction GetValidTransaction() {
+CMutableTransaction GetValidTransaction(int txVersion) {
     CMutableTransaction mtx;
+	mtx.nVersion = txVersion;
     mtx.vin.resize(2);
     mtx.vin[0].prevout.hash = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
     mtx.vin[0].prevout.n = 0;
@@ -55,7 +56,11 @@ CMutableTransaction GetValidTransaction() {
     // mtx.vout[0].scriptPubKey = 
     mtx.vout[0].nValue = 0;
     mtx.vout[1].nValue = 0;
-    mtx.vjoinsplit.resize(2);
+
+	mtx.vjoinsplit.clear();
+	mtx.vjoinsplit.push_back(JSDescription::getNewInstance(txVersion == GROTH_TX_VERSION));
+	mtx.vjoinsplit.push_back(JSDescription::getNewInstance(txVersion == GROTH_TX_VERSION));
+
     mtx.vjoinsplit[0].nullifiers.at(0) = uint256S("0000000000000000000000000000000000000000000000000000000000000000");
     mtx.vjoinsplit[0].nullifiers.at(1) = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
     mtx.vjoinsplit[1].nullifiers.at(0) = uint256S("0000000000000000000000000000000000000000000000000000000000000002");
@@ -74,7 +79,7 @@ CMutableTransaction GetValidTransaction() {
     // Empty output script.
     CScript scriptCode;
     CTransaction signTx(mtx);
-    uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL);
+    uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL | SIGHASH_FORKID, FORKID_IN_USE);
     if (dataToBeSigned == one) {
         throw std::runtime_error("SignatureHash failed");
     }
@@ -87,7 +92,20 @@ CMutableTransaction GetValidTransaction() {
     return mtx;
 }
 
-TEST(checktransaction_tests, valid_transaction) {
+CMutableTransaction GetValidTransaction() {
+	return GetValidTransaction(PHGR_TX_VERSION);
+}
+
+TEST(checktransaction_tests, valid_transparent_transaction) {
+    CMutableTransaction mtx = GetValidTransaction();
+    mtx.vjoinsplit.resize(0);
+    mtx.nVersion = 1;
+    CTransaction tx(mtx);
+    MockCValidationState state;
+    EXPECT_TRUE(CheckTransactionWithoutProofVerification(tx, state));
+}
+
+TEST(checktransaction_tests, valid_sprout_transaction) {
     CMutableTransaction mtx = GetValidTransaction();
     CTransaction tx(mtx);
     MockCValidationState state;
@@ -129,7 +147,8 @@ TEST(checktransaction_tests, bad_txns_vout_empty) {
 
 TEST(checktransaction_tests, bad_txns_oversize) {
     CMutableTransaction mtx = GetValidTransaction();
-
+    mtx.nVersion = 1;
+    mtx.vjoinsplit.resize(0);
     mtx.vin[0].scriptSig = CScript();
     std::vector<unsigned char> vchData(520);
     for (unsigned int i = 0; i < 190; ++i)
@@ -150,7 +169,7 @@ TEST(checktransaction_tests, bad_txns_oversize) {
     {
         CTransaction tx(mtx);
         ASSERT_EQ(::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION), 100202);
-
+    
         MockCValidationState state;
         EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-oversize", false)).Times(1);
         CheckTransactionWithoutProofVerification(tx, state);
@@ -391,3 +410,54 @@ TEST(checktransaction_tests, non_canonical_ed25519_signature) {
     EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-invalid-joinsplit-signature", false)).Times(1);
     CheckTransactionWithoutProofVerification(tx, state);
 }
+
+// Test that a Sprout tx with a negative version number is detected
+// given the new Overwinter logic
+TEST(checktransaction_tests, SproutTxVersionTooLow) {
+	SelectParams(CBaseChainParams::REGTEST);
+    CMutableTransaction mtx = GetValidTransaction();
+    mtx.vjoinsplit.resize(0);
+    mtx.nVersion = -1;
+
+    CTransaction tx(mtx);
+    MockCValidationState state;
+
+	EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
+	CheckTransactionWithoutProofVerification(tx, state);
+}
+
+TEST(checktransaction_tests, TransparentTxVersionWithJoinsplit) {
+	SelectParams(CBaseChainParams::REGTEST);
+	CMutableTransaction mtx = GetValidTransaction(TRANSPARENT_TX_VERSION);
+	CTransaction tx(mtx);
+	MockCValidationState state;
+	EXPECT_TRUE(CheckTransactionWithoutProofVerification(tx, state));
+	EXPECT_TRUE(ContextualCheckTransaction(tx, state, 1, 100));
+	EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-transparent-jsnotempty", false)).Times(1);
+	EXPECT_FALSE(ContextualCheckTransaction(tx, state, 200, 100));
+}
+
+TEST(checktransaction_tests, GrothTxVersion) {
+	SelectParams(CBaseChainParams::REGTEST);
+	CMutableTransaction mtx = GetValidTransaction(GROTH_TX_VERSION);
+	CTransaction tx(mtx);
+	MockCValidationState state;
+	EXPECT_TRUE(CheckTransactionWithoutProofVerification(tx, state));
+	EXPECT_CALL(state, DoS(0, false, REJECT_INVALID, "bad-tx-shielded-version-too-low", false)).Times(1);
+	EXPECT_FALSE(ContextualCheckTransaction(tx, state, 1, 100));
+	EXPECT_TRUE(ContextualCheckTransaction(tx, state, 200, 100));
+}
+
+TEST(checktransaction_tests, PhgrTxVersion) {
+	SelectParams(CBaseChainParams::REGTEST);
+	CMutableTransaction mtx = GetValidTransaction(PHGR_TX_VERSION);
+	CTransaction tx(mtx);
+	MockCValidationState state;
+	EXPECT_TRUE(CheckTransactionWithoutProofVerification(tx, state));
+	EXPECT_TRUE(ContextualCheckTransaction(tx, state, 1, 100));
+	EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-tx-shielded-version-too-low", false)).Times(1);
+	EXPECT_FALSE(ContextualCheckTransaction(tx, state, 200, 100));
+}
+
+
+

@@ -13,8 +13,12 @@ import shutil
 import tempfile
 import traceback
 
-from authproxy import AuthServiceProxy, JSONRPCException
-from util import *
+from authproxy import JSONRPCException
+from util import assert_equal, check_json_precision, \
+    initialize_chain, initialize_chain_clean, \
+    start_nodes, connect_nodes_bi, stop_nodes, \
+    sync_blocks, sync_mempools, wait_bitcoinds
+
 
 
 class BitcoinTestFramework(object):
@@ -23,7 +27,7 @@ class BitcoinTestFramework(object):
     def run_test(self):
         for node in self.nodes:
             assert_equal(node.getblockcount(), 200)
-            assert_equal(node.getbalance(), 25*10)
+            assert_equal(node.getbalance(), 25*50.00)
 
     def add_options(self, parser):
         pass
@@ -91,7 +95,7 @@ class BitcoinTestFramework(object):
         parser.add_option("--noshutdown", dest="noshutdown", default=False, action="store_true",
                           help="Don't stop bitcoinds after the test execution")
         parser.add_option("--srcdir", dest="srcdir", default="../../src",
-                          help="Source directory containing bitcoind/bitcoin-cli (default: %default)")
+                          help="Source directory containing btcpd/btcp-cli (default: %default)")
         parser.add_option("--tmpdir", dest="tmpdir", default=tempfile.mkdtemp(prefix="test"),
                           help="Root directory for datadirs")
         parser.add_option("--tracerpc", dest="trace_rpc", default=False, action="store_true",
@@ -162,11 +166,11 @@ class ComparisonTestFramework(BitcoinTestFramework):
 
     def add_options(self, parser):
         parser.add_option("--testbinary", dest="testbinary",
-                          default=os.getenv("BITCOIND", "bitcoind"),
-                          help="bitcoind binary to test")
+                          default=os.getenv("BITCOIND", "btcpd"),
+                          help="btcpd binary to test")
         parser.add_option("--refbinary", dest="refbinary",
-                          default=os.getenv("BITCOIND", "bitcoind"),
-                          help="bitcoind binary to use for reference nodes (if any)")
+                          default=os.getenv("BITCOIND", "btcpd"),
+                          help="btcpd binary to use for reference nodes (if any)")
 
     def setup_chain(self):
         print "Initializing test directory "+self.options.tmpdir

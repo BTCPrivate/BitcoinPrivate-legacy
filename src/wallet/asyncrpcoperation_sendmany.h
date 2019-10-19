@@ -12,6 +12,7 @@
 #include "zcash/JoinSplit.hpp"
 #include "zcash/Address.hpp"
 #include "wallet.h"
+#include "paymentdisclosure.h"
 
 #include <unordered_map>
 #include <tuple>
@@ -50,7 +51,7 @@ struct WitnessAnchorData {
 
 class AsyncRPCOperation_sendmany : public AsyncRPCOperation {
 public:
-    AsyncRPCOperation_sendmany(std::string fromAddress, std::vector<SendManyRecipient> tOutputs, std::vector<SendManyRecipient> zOutputs, int minDepth, CAmount fee = ASYNC_RPC_OPERATION_DEFAULT_MINERS_FEE, UniValue contextInfo = NullUniValue);
+    AsyncRPCOperation_sendmany(CMutableTransaction contextualTx, std::string fromAddress, std::vector<SendManyRecipient> tOutputs, std::vector<SendManyRecipient> zOutputs, int minDepth, CAmount fee = ASYNC_RPC_OPERATION_DEFAULT_MINERS_FEE, UniValue contextInfo = NullUniValue);
     virtual ~AsyncRPCOperation_sendmany();
     
     // We don't want to be copied or moved around
@@ -64,6 +65,9 @@ public:
     virtual UniValue getStatus() const;
 
     bool testmode = false;  // Set to true to disable sending txs and generating proofs
+
+    bool paymentDisclosureMode = false; // Set to true to save esk for encrypted notes in payment disclosure database.
+
 
 private:
     friend class TEST_FRIEND_AsyncRPCOperation_sendmany;    // class for unit testing
@@ -96,7 +100,7 @@ private:
     void add_taddr_outputs_to_tx();
     bool find_unspent_notes();
     bool find_utxos(bool fAcceptCoinbase);
-    boost::array<unsigned char, ZC_MEMO_SIZE> get_memo_from_hex_string(std::string s);
+    std::array<unsigned char, ZC_MEMO_SIZE> get_memo_from_hex_string(std::string s);
     bool main_impl();
 
     // JoinSplit without any input notes to spend
@@ -113,6 +117,8 @@ private:
 
     void sign_send_raw_transaction(UniValue obj);     // throws exception if there was an error
 
+    // payment disclosure!
+    std::vector<PaymentDisclosureKeyInfo> paymentDisclosureData_;
 };
 
 
@@ -148,8 +154,8 @@ public:
     bool find_utxos(bool fAcceptCoinbase) {
         return delegate->find_utxos(fAcceptCoinbase);
     }
-    
-    boost::array<unsigned char, ZC_MEMO_SIZE> get_memo_from_hex_string(std::string s) {
+
+    std::array<unsigned char, ZC_MEMO_SIZE> get_memo_from_hex_string(std::string s) {
         return delegate->get_memo_from_hex_string(s);
     }
     

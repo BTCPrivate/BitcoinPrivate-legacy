@@ -14,7 +14,7 @@ Functionality to build scripts, as well as SignatureHash().
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from test_framework.mininode import CTransaction, CTxOut, hash256
+from test_framework.mininode import CTransaction, CTxOut, hash256, sha256
 
 import sys
 bchr = chr
@@ -24,16 +24,19 @@ if sys.version > '3':
     bchr = lambda x: bytes([x])
     bord = lambda x: x
 
-import copy
 import struct
+import hashlib
 
-import test_framework.bignum
+from test_framework import bignum
 
 MAX_SCRIPT_SIZE = 10000
 MAX_SCRIPT_ELEMENT_SIZE = 520
 MAX_SCRIPT_OPCODES = 201
 
 OPCODE_NAMES = {}
+
+def hash160(s):
+    return hashlib.new('ripemd160', sha256(s)).digest()
 
 _opcode_instances = []
 class CScriptOp(int):
@@ -230,6 +233,7 @@ OP_NOP2 = CScriptOp(0xb1)
 OP_NOP3 = CScriptOp(0xb2)
 OP_NOP4 = CScriptOp(0xb3)
 OP_NOP5 = CScriptOp(0xb4)
+OP_CHECKBLOCKATHEIGHT = OP_NOP5
 OP_NOP6 = CScriptOp(0xb5)
 OP_NOP7 = CScriptOp(0xb6)
 OP_NOP8 = CScriptOp(0xb7)
@@ -357,6 +361,7 @@ VALID_OPCODES = {
     OP_NOP3,
     OP_NOP4,
     OP_NOP5,
+    OP_CHECKBLOCKATHEIGHT,    
     OP_NOP6,
     OP_NOP7,
     OP_NOP8,
@@ -475,7 +480,8 @@ OPCODE_NAMES.update({
     OP_NOP2 : 'OP_NOP2',
     OP_NOP3 : 'OP_NOP3',
     OP_NOP4 : 'OP_NOP4',
-    OP_NOP5 : 'OP_NOP5',
+    #OP_NOP5 : 'OP_NOP5',
+    OP_CHECKBLOCKATHEIGHT : 'OP_CHECKBLOCKATHEIGHT',
     OP_NOP6 : 'OP_NOP6',
     OP_NOP7 : 'OP_NOP7',
     OP_NOP8 : 'OP_NOP8',
@@ -594,7 +600,8 @@ OPCODES_BY_NAME = {
     'OP_NOP2' : OP_NOP2,
     'OP_NOP3' : OP_NOP3,
     'OP_NOP4' : OP_NOP4,
-    'OP_NOP5' : OP_NOP5,
+    #OP_NOP5 : 'OP_NOP5',
+    OP_CHECKBLOCKATHEIGHT : 'OP_CHECKBLOCKATHEIGHT',
     'OP_NOP6' : OP_NOP6,
     'OP_NOP7' : OP_NOP7,
     'OP_NOP8' : OP_NOP8,
@@ -666,7 +673,7 @@ class CScript(bytes):
             else:
                 other = CScriptOp.encode_op_pushdata(bignum.bn2vch(other))
         elif isinstance(other, (bytes, bytearray)):
-            other = CScriptOp.encode_op_pushdata(other)
+            other = bytes(CScriptOp.encode_op_pushdata(other))
         return other
 
     def __add__(self, other):

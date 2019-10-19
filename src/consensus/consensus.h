@@ -9,7 +9,7 @@
 /** The minimum allowed block version (network rule) */
 static const int32_t MIN_BLOCK_VERSION = 4;
 /** The minimum allowed transaction version (network rule) */
-static const int32_t MIN_TX_VERSION = 1;
+static const int32_t MIN_OLD_TX_VERSION = 1;
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 2000000;
 /** The maximum allowed number of signature check operations in a block (network rule) */

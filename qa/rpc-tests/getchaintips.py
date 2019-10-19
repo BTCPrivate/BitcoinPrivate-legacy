@@ -13,8 +13,10 @@ from test_framework.util import assert_equal
 class GetChainTipsTest (BitcoinTestFramework):
 
     def run_test (self):
+        # self.nodes[0].generate(200)
+        # self.sync_all ()
+        
         BitcoinTestFramework.run_test (self)
-
         tips = self.nodes[0].getchaintips ()
         assert_equal (len (tips), 1)
         assert_equal (tips[0]['branchlen'], 0)
@@ -23,8 +25,8 @@ class GetChainTipsTest (BitcoinTestFramework):
 
         # Split the network and build two chains of different lengths.
         self.split_network ()
-        self.nodes[0].generate(10);
-        self.nodes[2].generate(20);
+        self.nodes[0].generate(10)
+        self.nodes[2].generate(20)
         self.sync_all ()
 
         tips = self.nodes[1].getchaintips ()

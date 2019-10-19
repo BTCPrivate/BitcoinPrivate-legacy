@@ -337,6 +337,10 @@ bool ContextualCheckInputs(const CTransaction& tx, CValidationState &state, cons
                            unsigned int flags, bool cacheStore, const Consensus::Params& consensusParams,
                            std::vector<CScriptCheck> *pvChecks = NULL);
 
+/** Check a transaction contextually against a set of consensus rules */
+bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state, int nHeight, int dosLevel,
+                                bool (*isInitBlockDownload)(bool) = IsInitialBlockDownload);
+
 /** Apply the effects of this transaction on the UTXO set represented by view */
 void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCache &inputs, int nHeight);
 

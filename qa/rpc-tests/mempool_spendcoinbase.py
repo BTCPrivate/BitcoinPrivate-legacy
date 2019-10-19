@@ -14,9 +14,10 @@
 #
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-import os
-import shutil
+from test_framework.authproxy import JSONRPCException
+from test_framework.util import assert_equal, assert_greater_than, assert_raises, \
+    start_node
+
 
 # Create one-input, one-output, no-fee transaction:
 class MempoolSpendCoinbaseTest(BitcoinTestFramework):
@@ -37,6 +38,7 @@ class MempoolSpendCoinbaseTest(BitcoinTestFramework):
         return signresult["hex"]
 
     def run_test(self):
+        # self.nodes[0].generate(200)
         chain_height = self.nodes[0].getblockcount()
         assert_equal(chain_height, 200)
         node0_address = self.nodes[0].getnewaddress()
@@ -46,7 +48,7 @@ class MempoolSpendCoinbaseTest(BitcoinTestFramework):
         # is too immature to spend.
         b = [ self.nodes[0].getblockhash(n) for n in range(101, 103) ]
         coinbase_txids = [ self.nodes[0].getblock(h)['tx'][0] for h in b ]
-        spends_raw = [ self.create_tx(txid, node0_address, 10) for txid in coinbase_txids ]
+        spends_raw = [ self.create_tx(txid, node0_address, 50.00) for txid in coinbase_txids ]
 
         spend_101_id = self.nodes[0].sendrawtransaction(spends_raw[0])
 

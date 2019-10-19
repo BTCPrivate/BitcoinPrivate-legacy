@@ -92,8 +92,16 @@ void static RandomScript(CScript &script) {
         script << oplist[insecure_rand() % (sizeof(oplist)/sizeof(oplist[0]))];
 }
 
-void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
-    tx.nVersion = insecure_rand();
+void static RandomTransaction(CMutableTransaction &tx, bool fSingle, bool emptyInputScript = false) {
+	bool isGroth = (insecure_rand() % 2) ==  0;
+	if (isGroth) {
+		tx.nVersion = GROTH_TX_VERSION;
+	} else {
+		//this can generate negative versions (including GROTH_TX_VERSION)
+		// test will also have to verify if negative versions are rejected except GROTH_TX_VERSION
+		tx.nVersion = insecure_rand();
+	}
+
     tx.vin.clear();
     tx.vout.clear();
     tx.nLockTime = (insecure_rand() % 2) ? insecure_rand() : 0;
@@ -105,7 +113,11 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
         CTxIn &txin = tx.vin.back();
         txin.prevout.hash = GetRandHash();
         txin.prevout.n = insecure_rand() % 4;
-        RandomScript(txin.scriptSig);
+        if(emptyInputScript) {
+        	txin.scriptSig = CScript();
+        } else {
+        	RandomScript(txin.scriptSig);
+        }
         txin.nSequence = (insecure_rand() % 2) ? insecure_rand() : (unsigned int)-1;
     }
     for (int out = 0; out < outs; out++) {
@@ -114,9 +126,9 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
         txout.nValue = insecure_rand() % 100000000;
         RandomScript(txout.scriptPubKey);
     }
-    if (tx.nVersion >= 2) {
+    if (tx.nVersion >= PHGR_TX_VERSION || tx.nVersion == GROTH_TX_VERSION) {
         for (int js = 0; js < joinsplits; js++) {
-            JSDescription jsdesc;
+            JSDescription jsdesc = JSDescription::getNewInstance(tx.nVersion == GROTH_TX_VERSION);
             if (insecure_rand() % 2 == 0) {
                 jsdesc.vpub_old = insecure_rand() % 100000000;
             } else {
@@ -130,7 +142,13 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
             jsdesc.randomSeed = GetRandHash();
             randombytes_buf(jsdesc.ciphertexts[0].begin(), jsdesc.ciphertexts[0].size());
             randombytes_buf(jsdesc.ciphertexts[1].begin(), jsdesc.ciphertexts[1].size());
-            jsdesc.proof = libzcash::ZCProof::random_invalid();
+            if (tx.nVersion == GROTH_TX_VERSION) {
+                libzcash::GrothProof zkproof;
+                randombytes_buf(zkproof.begin(), zkproof.size());
+                jsdesc.proof = zkproof;
+            } else {
+                jsdesc.proof = libzcash::PHGRProof::random_invalid();
+            }
             jsdesc.macs[0] = GetRandHash();
             jsdesc.macs[1] = GetRandHash();
 
@@ -143,7 +161,7 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
         // Empty output script.
         CScript scriptCode;
         CTransaction signTx(tx);
-        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL);
+        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL | SIGHASH_FORKID, FORKID_IN_USE);
 
         assert(crypto_sign_detached(&tx.joinSplitSig[0], NULL,
                                     dataToBeSigned.begin(), 32,
@@ -152,7 +170,7 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
     }
 }
 
-BOOST_FIXTURE_TEST_SUITE(sighash_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(sighash_tests, TestingSetup)
 
 BOOST_AUTO_TEST_CASE(sighash_test)
 {
@@ -198,6 +216,34 @@ BOOST_AUTO_TEST_CASE(sighash_test)
     #if defined(PRINT_SIGHASH_JSON)
     std::cout << "]\n";
     #endif
+
+}
+
+// Goal: check that SignatureHash generates correct hash by checking if serialization matches with the one implemented in CTransaction
+BOOST_AUTO_TEST_CASE(sighash_from_tx)
+{
+	int nRandomTests = 500;
+
+	for (int i=0; i<nRandomTests; i++) {
+		CMutableTransaction txTo;
+		uint256 interpreterSH, checkSH;
+		CScript scriptCode;
+
+		RandomTransaction(txTo, false, true);
+		CTransaction::joinsplit_sig_t nullSig = {};
+		txTo.joinSplitSig = nullSig;
+
+		interpreterSH = SignatureHash(scriptCode, txTo, NOT_AN_INPUT, SIGHASH_ALL | SIGHASH_FORKID, FORKID_IN_USE);
+
+
+		// Serialize and hash
+		CHashWriter ss(SER_GETHASH, 0);
+		ss << txTo << (int)SIGHASH_ALL;
+		checkSH = ss.GetHash();
+		BOOST_CHECK(checkSH == interpreterSH);
+
+	}
+
 }
 
 // Goal: check that SignatureHash generates correct hash
@@ -234,7 +280,8 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
           stream >> tx;
 
           CValidationState state;
-          if (tx.nVersion < MIN_TX_VERSION) {
+
+          if (tx.nVersion < MIN_OLD_TX_VERSION && tx.nVersion != GROTH_TX_VERSION) {
               // Transaction must be invalid
               BOOST_CHECK_MESSAGE(!CheckTransactionWithoutProofVerification(tx, state), strTest);
               BOOST_CHECK(!state.IsValid());
@@ -245,6 +292,9 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
 
           std::vector<unsigned char> raw = ParseHex(raw_script);
           scriptCode.insert(scriptCode.end(), raw.begin(), raw.end());
+        } catch (const std::exception& e) {
+        	BOOST_ERROR("Bad test (exception: \"" << e.what() << "\"), couldn't deserialize data: " << strTest);
+        	continue;
         } catch (...) {
           BOOST_ERROR("Bad test, couldn't deserialize data: " << strTest);
           continue;

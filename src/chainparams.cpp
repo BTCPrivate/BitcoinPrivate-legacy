@@ -124,6 +124,8 @@ public:
         base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x88,0xAD,0xE4};
         // guarantees the first 2 characters, when base58 encoded, are "zk"
         base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0xA8};
+        // guarantees the first 4 characters, when base58 encoded, are "ZiVK"
+        base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAB,0xD3};
         // guarantees the first 2 characters, when base58 encoded, are "SK"
         base58Prefixes[ZCSPENDING_KEY]     = {0xAB,0x36};
 
@@ -170,6 +172,9 @@ public:
         lwmaActivationHeight = 618018;
         lwmaAveragingWindow = 120;
 
+
+        //Sapling
+        saplingActivationBlock = 630000;
     }
 };
 static CMainParams mainParams;
@@ -241,6 +246,8 @@ public:
         base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x35,0x83,0x94};
         // guarantees the first 2 characters, when base58 encoded, are "zz"
         base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0xC0};
+        // guarantees the first 4 characters, when base58 encoded, are "ZiVt"
+        base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAC,0x0C};
         // guarantees the first 2 characters, when base58 encoded, are "ST"
         base58Prefixes[ZCSPENDING_KEY]     = {0xAC,0x08};
 
@@ -268,6 +275,9 @@ public:
         nEquihashParamsUpdate = 150;
         nEquihashNnew = 192;
         nEquihashKnew = 7;
+
+        saplingActivationBlock = 180;
+
 
         // LWMA-1
         lwmaActivationHeight = 168;
@@ -360,6 +370,8 @@ public:
         lwmaActivationHeight = 168;
         lwmaAveragingWindow = 120;
 
+        saplingActivationBlock = 180;
+
     }
 };
 static CRegTestParams regTestParams;
@@ -403,4 +415,10 @@ bool SelectParamsFromCommandLine()
 
     SelectParams(network);
     return true;
+}
+
+
+bool CChainParams::isGrothActive(int nHeight) const {
+    assert(saplingActivationBlock > 0);
+    return nHeight >= saplingActivationBlock;
 }

@@ -8,13 +8,10 @@
 #
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-import base64
+from test_framework.util import assert_equal, connect_nodes_bi, p2p_port,connect_nodes
 
-try:
-    import http.client as httplib
-except ImportError:
-    import httplib
+import time
+
 try:
     import urllib.parse as urlparse
 except ImportError:
@@ -64,6 +61,23 @@ class NodeHandlingTest (BitcoinTestFramework):
             if node['addr'] == url.hostname+":"+str(p2p_port(1)):
                 found = True
         assert(found)
+
+        ###########################
+        # Connection to self (takes approx 5 min)
+        # Stress test for network layer. Trying to connect to self every 0.5 sec.
+        # Helps to discover different multi-threading problems.
+        ###########################
+        url = urlparse.urlparse(self.nodes[0].url)
+
+        print "Connection to self stress test. " \
+              "Constantly trying to connect to self every 0.5 sec. " \
+              "The whole test takes approx 5 mins"
+        for x in xrange(600):
+            connect_nodes(self.nodes[0], 0)
+            time.sleep(0.5)
+            # self-connection should be disconnected during the version checking
+            for node in self.nodes[0].getpeerinfo():
+                assert(node['addr'] != url.hostname+":"+str(p2p_port(0)))
 
 if __name__ == '__main__':
     NodeHandlingTest ().main ()

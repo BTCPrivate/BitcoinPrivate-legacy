@@ -169,16 +169,12 @@ public:
     // Transaction hash
     uint256 hash;
     // Index into CTransaction.vjoinsplit
-    #ifdef __LP64__ // required to build on MacOS due to size_t ambiguity errors
     uint64_t js;
-    #else
-    size_t js;
-    #endif
     // Index into JSDescription fields of length ZC_NUM_JS_OUTPUTS
     uint8_t n;
 
     JSOutPoint() { SetNull(); }
-    JSOutPoint(uint256 h, size_t js, uint8_t n) : hash {h}, js {js}, n {n} { }
+    JSOutPoint(uint256 h, uint64_t js, uint8_t n) : hash {h}, js {js}, n {n} { }
 
     ADD_SERIALIZE_METHODS;
 
@@ -884,9 +880,15 @@ public:
     //! Load spending key metadata (used by LoadWallet)
     bool LoadZKeyMetadata(const libzcash::PaymentAddress &addr, const CKeyMetadata &meta);
     //! Adds an encrypted spending key to the store, without saving it to disk (used by LoadWallet)
-    bool LoadCryptedZKey(const libzcash::PaymentAddress &addr, const libzcash::ViewingKey &vk, const std::vector<unsigned char> &vchCryptedSecret);
+    bool LoadCryptedZKey(const libzcash::PaymentAddress &addr, const libzcash::ReceivingKey &rk, const std::vector<unsigned char> &vchCryptedSecret);
     //! Adds an encrypted spending key to the store, and saves it to disk (virtual method, declared in crypter.h)
-    bool AddCryptedSpendingKey(const libzcash::PaymentAddress &address, const libzcash::ViewingKey &vk, const std::vector<unsigned char> &vchCryptedSecret);
+    bool AddCryptedSpendingKey(const libzcash::PaymentAddress &address, const libzcash::ReceivingKey &rk, const std::vector<unsigned char> &vchCryptedSecret);
+
+    //! Adds a viewing key to the store, and saves it to disk.
+    bool AddViewingKey(const libzcash::ViewingKey &vk);
+    bool RemoveViewingKey(const libzcash::ViewingKey &vk);
+    //! Adds a viewing key to the store, without saving it to disk (used by LoadWallet)
+    bool LoadViewingKey(const libzcash::ViewingKey &dest);
 
     /**
      * Increment the next transaction order id
@@ -1049,7 +1051,7 @@ public:
     void SetBroadcastTransactions(bool broadcast) { fBroadcastTransactions = broadcast; }
 
     /* Find notes filtered by payment address, min depth, ability to spend */
-    void GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries, std::string address, int minDepth=1, bool ignoreSpent=true);
+    void GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries, std::string address, int minDepth=1, bool ignoreSpent=true, bool ignoreUnspendable=true);
 
     /**
      * Explicitly make the wallet learn the related scripts for outputs to the

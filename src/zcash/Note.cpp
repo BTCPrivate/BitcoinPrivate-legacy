@@ -2,18 +2,19 @@
 #include "prf.h"
 #include "crypto/sha256.h"
 
+#include "random.h"
 #include "version.h"
 #include "streams.h"
 
 #include "zcash/util.h"
+#include "librustzcash.h"
 
-namespace libzcash {
+using namespace libzcash;
 
 Note::Note() {
     a_pk = random_uint256();
     rho = random_uint256();
     r = random_uint256();
-    value = 0;
 }
 
 uint256 Note::cm() const {
@@ -23,7 +24,7 @@ uint256 Note::cm() const {
     hasher.Write(&discriminant, 1);
     hasher.Write(a_pk.begin(), 32);
 
-    auto value_vec = convertIntToVectorLE(value);
+    auto value_vec = convertIntToVectorLE(value_);
 
     hasher.Write(&value_vec[0], value_vec.size());
     hasher.Write(rho.begin(), 32);
@@ -41,16 +42,15 @@ uint256 Note::nullifier(const SpendingKey& a_sk) const {
 
 NotePlaintext::NotePlaintext(
     const Note& note,
-    boost::array<unsigned char, ZC_MEMO_SIZE> memo) : memo(memo)
+    std::array<unsigned char, ZC_MEMO_SIZE> memo) : BaseNotePlaintext(note, memo)
 {
-    value = note.value;
     rho = note.rho;
     r = note.r;
 }
 
 Note NotePlaintext::note(const PaymentAddress& addr) const
 {
-    return Note(addr.a_pk, value, rho, r);
+    return Note(addr.a_pk, value_, rho, r);
 }
 
 NotePlaintext NotePlaintext::decrypt(const ZCNoteDecryption& decryptor,
@@ -87,6 +87,4 @@ ZCNoteEncryption::Ciphertext NotePlaintext::encrypt(ZCNoteEncryption& encryptor,
     memcpy(&pt[0], &ss[0], pt.size());
 
     return encryptor.encrypt(pk_enc, pt);
-}
-
 }

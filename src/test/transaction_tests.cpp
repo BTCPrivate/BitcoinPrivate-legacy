@@ -6,6 +6,7 @@
 #include "data/tx_valid.json.h"
 #include "test/test_bitcoin.h"
 
+#include "init.h"
 #include "clientversion.h"
 #include "consensus/validation.h"
 #include "core_io.h"
@@ -85,7 +86,7 @@ string FormatScriptFlags(unsigned int flags)
     return ret.substr(0, ret.size() - 1);
 }
 
-BOOST_FIXTURE_TEST_SUITE(transaction_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(transaction_tests, JoinSplitTestingSetup)
 
 BOOST_AUTO_TEST_CASE(tx_valid)
 {
@@ -157,8 +158,8 @@ BOOST_AUTO_TEST_CASE(tx_valid)
                 unsigned int verify_flags = ParseScriptFlags(test[2].get_str());
                 BOOST_CHECK_MESSAGE(VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
                                                  verify_flags, TransactionSignatureChecker(&tx, i), &err),
-                                    strTest + comment);
-                BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err) + comment);
+                                    strTest);
+                BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
             }
 
             comment = "";
@@ -239,7 +240,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
 
                 unsigned int verify_flags = ParseScriptFlags(test[2].get_str());
                 fValid = VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                      verify_flags, TransactionSignatureChecker(&tx, i), &err);
+                        verify_flags, TransactionSignatureChecker(&tx, i), &err);
             }
             BOOST_CHECK_MESSAGE(!fValid, strTest + comment);
             BOOST_CHECK_MESSAGE(err != SCRIPT_ERR_OK, ScriptErrorString(err) + comment);
@@ -309,8 +310,8 @@ SetupDummyInputs(CBasicKeyStore& keystoreRet, CCoinsViewCache& coinsRet)
     return dummyTransactions;
 }
 
-BOOST_AUTO_TEST_CASE(test_basic_joinsplit_verification)
-{
+
+void basic_joinsplit_verification(int txVersion, bool isGroth) {
     // We only check that joinsplits are constructed properly
     // and verify properly here. libsnark tends to segfault
     // when our snarks or what-have-you are invalid, so
@@ -325,9 +326,6 @@ BOOST_AUTO_TEST_CASE(test_basic_joinsplit_verification)
     //
     // Also, it's generally libzcash's job to ensure the
     // integrity of the scheme through its own tests.
-
-    // construct the r1cs keypair
-    auto p = ZCJoinSplit::Generate();
 
     // construct a merkle tree
     ZCIncrementalMerkleTree merkleTree;
@@ -350,11 +348,11 @@ BOOST_AUTO_TEST_CASE(test_basic_joinsplit_verification)
 
     // create JSDescription
     uint256 pubKeyHash;
-    boost::array<libzcash::JSInput, ZC_NUM_JS_INPUTS> inputs = {
+    std::array<libzcash::JSInput, ZC_NUM_JS_INPUTS> inputs = {
         libzcash::JSInput(witness, note, k),
         libzcash::JSInput() // dummy input of zero value
     };
-    boost::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS> outputs = {
+    std::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS> outputs = {
         libzcash::JSOutput(addr, 50),
         libzcash::JSOutput(addr, 50)
     };
@@ -362,31 +360,40 @@ BOOST_AUTO_TEST_CASE(test_basic_joinsplit_verification)
     auto verifier = libzcash::ProofVerifier::Strict();
 
     {
-        JSDescription jsdesc(*p, pubKeyHash, rt, inputs, outputs, 0, 0);
-        BOOST_CHECK(jsdesc.Verify(*p, verifier, pubKeyHash));
+        JSDescription jsdesc(isGroth, *pzcashParams, pubKeyHash, rt, inputs, outputs, 0, 0);
+        BOOST_CHECK(jsdesc.Verify(*pzcashParams, verifier, pubKeyHash));
 
         CDataStream ss(SER_DISK, CLIENT_VERSION);
-        ss << jsdesc;
+        
+        auto over_ss = WithTxVersion(&ss, txVersion);
+        over_ss << jsdesc;
 
         JSDescription jsdesc_deserialized;
-        ss >> jsdesc_deserialized;
+        over_ss >> jsdesc_deserialized;
 
         BOOST_CHECK(jsdesc_deserialized == jsdesc);
-        BOOST_CHECK(jsdesc_deserialized.Verify(*p, verifier, pubKeyHash));
+        BOOST_CHECK(jsdesc_deserialized.Verify(*pzcashParams, verifier, pubKeyHash));
     }
 
     {
         // Ensure that the balance equation is working.
-        BOOST_CHECK_THROW(JSDescription(*p, pubKeyHash, rt, inputs, outputs, 10, 0), std::invalid_argument);
-        BOOST_CHECK_THROW(JSDescription(*p, pubKeyHash, rt, inputs, outputs, 0, 10), std::invalid_argument);
+        BOOST_CHECK_THROW(JSDescription(isGroth, *pzcashParams, pubKeyHash, rt, inputs, outputs, 10, 0), std::invalid_argument);
+        BOOST_CHECK_THROW(JSDescription(isGroth, *pzcashParams, pubKeyHash, rt, inputs, outputs, 0, 10), std::invalid_argument);
     }
 
     {
         // Ensure that it won't verify if the root is changed.
-        auto test = JSDescription(*p, pubKeyHash, rt, inputs, outputs, 0, 0);
+        auto test = JSDescription(isGroth, *pzcashParams, pubKeyHash, rt, inputs, outputs, 0, 0);
         test.anchor = GetRandHash();
-        BOOST_CHECK(!test.Verify(*p, verifier, pubKeyHash));
+        BOOST_CHECK(!test.Verify(*pzcashParams, verifier, pubKeyHash));
     }
+}
+
+BOOST_AUTO_TEST_CASE(test_basic_joinsplit_verification)
+{
+	basic_joinsplit_verification(PHGR_TX_VERSION, false);
+	basic_joinsplit_verification(GROTH_TX_VERSION, true);
+
 }
 
 BOOST_AUTO_TEST_CASE(test_simple_joinsplit_invalidity)
@@ -418,13 +425,13 @@ BOOST_AUTO_TEST_CASE(test_simple_joinsplit_invalidity)
         jsdesc->nullifiers[0] = GetRandHash();
         jsdesc->nullifiers[1] = GetRandHash();
 
-        BOOST_CHECK(!CheckJoinSplitSigs(newTx, state, 0));
+        BOOST_CHECK(!CheckTransactionWithoutProofVerification(newTx, state));
         BOOST_CHECK(state.GetRejectReason() == "bad-txns-invalid-joinsplit-signature");
 
         // Empty output script.
         CScript scriptCode;
         CTransaction signTx(newTx);
-        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL);
+        uint256 dataToBeSigned = SignatureHash(scriptCode, signTx, NOT_AN_INPUT, SIGHASH_ALL | SIGHASH_FORKID, FORKID_IN_USE);
 
         assert(crypto_sign_detached(&newTx.joinSplitSig[0], NULL,
                                     dataToBeSigned.begin(), 32,
@@ -439,7 +446,7 @@ BOOST_AUTO_TEST_CASE(test_simple_joinsplit_invalidity)
         CValidationState state;
 
         newTx.vjoinsplit.push_back(JSDescription());
-
+        
         JSDescription *jsdesc = &newTx.vjoinsplit[0];
         jsdesc->vpub_old = -1;
 
@@ -543,6 +550,14 @@ BOOST_AUTO_TEST_CASE(test_Get)
 
     BOOST_CHECK(AreInputsStandard(t1, coins));
     BOOST_CHECK_EQUAL(coins.GetValueIn(t1), (50+21+22)*CENT);
+
+    // Adding extra junk to the scriptSig should make it non-standard:
+    t1.vin[0].scriptSig << OP_11;
+    BOOST_CHECK(!AreInputsStandard(t1, coins));
+
+    // ... as should not having enough:
+    t1.vin[0].scriptSig = CScript();
+    BOOST_CHECK(!AreInputsStandard(t1, coins));
 }
 
 BOOST_AUTO_TEST_CASE(test_IsStandard)
@@ -552,7 +567,7 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     CCoinsView coinsDummy;
     CCoinsViewCache coins(&coinsDummy);
     std::vector<CMutableTransaction> dummyTransactions = SetupDummyInputs(keystore, coins);
-
+    
     CMutableTransaction t;
     t.vin.resize(1);
     t.vin[0].prevout.hash = dummyTransactions[0].GetHash();
@@ -604,13 +619,25 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     BOOST_CHECK(!IsStandardTx(t, reason));
 }
 
-BOOST_AUTO_TEST_CASE(test_IsStandardV2)
+
+void verifyTx(CMutableTransaction &t, int height, bool expectResultStd, bool expectResultCtx) {
+	string reason;
+	CValidationState state;
+	BOOST_CHECK_MESSAGE(IsStandardTx(t, reason) == expectResultStd, "IsStandardTx unexpected (" << !expectResultStd << ") result for tx version " << t.nVersion << ", height " << height);
+	BOOST_CHECK_MESSAGE(ContextualCheckTransaction(t, state, height, 100) == expectResultCtx, "ContextualCheckTransaction unexpected (" << !expectResultCtx << ") result for tx version " << t.nVersion << ", height " << height );
+}
+
+void verifyTxVersions(CBaseChainParams::Network network, int grothIntroductionHeight)
 {
     LOCK(cs_main);
+
+	SelectParams(network);
+
     CBasicKeyStore keystore;
     CCoinsView coinsDummy;
     CCoinsViewCache coins(&coinsDummy);
     std::vector<CMutableTransaction> dummyTransactions = SetupDummyInputs(keystore, coins);
+
 
     CMutableTransaction t;
     t.vin.resize(1);
@@ -623,36 +650,72 @@ BOOST_AUTO_TEST_CASE(test_IsStandardV2)
     key.MakeNewKey(true);
     t.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
-    string reason;
+
     // A v2 transaction with no JoinSplits is still standard.
     t.nVersion = 2;
-    BOOST_CHECK(IsStandardTx(t, reason));
+    verifyTx(t, grothIntroductionHeight - 1, true, true);
 
     // ... and with one JoinSplit.
-    t.vjoinsplit.push_back(JSDescription());
-    BOOST_CHECK(IsStandardTx(t, reason));
+    t.vjoinsplit.push_back(JSDescription::getNewInstance(false));
+    verifyTx(t, grothIntroductionHeight - 1, true, true);
 
     // ... and when that JoinSplit takes from a transparent input.
     JSDescription *jsdesc = &t.vjoinsplit[0];
     jsdesc->vpub_old = 10*CENT;
     t.vout[0].nValue -= 10*CENT;
-    BOOST_CHECK(IsStandardTx(t, reason));
+    verifyTx(t, grothIntroductionHeight - 1, true, true);
 
     // A v2 transaction with JoinSplits but no transparent inputs is standard.
     jsdesc->vpub_old = 0;
     jsdesc->vpub_new = 100*CENT;
     t.vout[0].nValue = 90*CENT;
     t.vin.resize(0);
-    BOOST_CHECK(IsStandardTx(t, reason));
+    verifyTx(t, grothIntroductionHeight - 1, true, true);
+    // but is not standard if Groth is active
+    verifyTx(t, grothIntroductionHeight, false, false);
 
     // v2 transactions can still be non-standard for the same reasons as v1.
     t.vout[0].nValue = 53; // dust
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    verifyTx(t, grothIntroductionHeight, false, false);
 
-    // v3 is not standard.
-    t.nVersion = 3;
+
+    // v3 with Groth is not standard before Groth is active
+    t.nVersion = GROTH_TX_VERSION;
+    t.vjoinsplit.clear();
+    t.vjoinsplit.push_back(JSDescription::getNewInstance(true)); // use Groth
+    jsdesc = &t.vjoinsplit[0];
+    jsdesc->vpub_old = 0;
+    jsdesc->vpub_new = 100*CENT;
     t.vout[0].nValue = 90*CENT;
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    t.vin.resize(0);
+    verifyTx(t, grothIntroductionHeight - 1, false, false);
+    // v3 with Groth is standard when Groth is active
+    verifyTx(t, grothIntroductionHeight, true, true);
+
+    // v2 is not standard after Groth is active
+	t.nVersion = PHGR_TX_VERSION;
+	t.vjoinsplit.clear();
+	t.vjoinsplit.push_back(JSDescription::getNewInstance(false)); // use PHGR
+	jsdesc = &t.vjoinsplit[0];
+	jsdesc->vpub_old = 0;
+	jsdesc->vpub_new = 100*CENT;
+	t.vout[0].nValue = 90*CENT;
+    verifyTx(t, grothIntroductionHeight, false, false);
+
+	// v1 is still standard after Groth is active but should be refused by contextual checks if joinsplit is not empty
+	t.nVersion = TRANSPARENT_TX_VERSION;
+	verifyTx(t, grothIntroductionHeight, true, false);
+	// but v1 was accepted by consensus if joinsplit is not empty before Groth introduction (in any case it should have never happened
+	// because deserializer would not have deserialized joinsplits for v1)
+	verifyTx(t, grothIntroductionHeight - 1, true, true);
+}
+
+
+BOOST_AUTO_TEST_CASE(test_IsStandardV2)
+{
+	verifyTxVersions(CBaseChainParams::REGTEST, 200);
+	verifyTxVersions(CBaseChainParams::TESTNET, 3000);
+	verifyTxVersions(CBaseChainParams::MAIN, 50000);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

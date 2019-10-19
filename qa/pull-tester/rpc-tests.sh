@@ -11,66 +11,72 @@ export BITCOIND=${REAL_BITCOIND}
 #Run the tests
 
 testScripts=(
-    'prioritisetransaction.py'
+    'paymentdisclosure.py'
+    # 'prioritisetransaction.py'                #broken - No module named pyblake2
     'wallet_treestate.py'
     'wallet_protectcoinbase.py'
     'wallet_shieldcoinbase.py'
     'wallet.py'
     'wallet_nullifiers.py'
     'wallet_1941.py'
-    'listtransactions.py'
-    'mempool_resurrect_test.py'
-    'txn_doublespend.py'
-    'txn_doublespend.py --mineblock'
-    'getchaintips.py'
-    'rawtransactions.py'
-    'rest.py'
+    'wallet_grothtx.py'
+    'listtransactions.py' 
+    'mempool_resurrect_test.py' 
+    'txn_doublespend.py'                  
+    'txn_doublespend.py --mineblock'        
+    'getchaintips.py' 
+    'rawtransactions.py' 
+    'rest.py' 
     'mempool_spendcoinbase.py'
-    'mempool_coinbase_spends.py'
-    'mempool_tx_input_limit.py'
-    'httpbasics.py'
-    'zapwallettxes.py'
-    'proxy_test.py'
+    'mempool_coinbase_spends.py'              
+    'mempool_tx_input_limit.py'               
+    'httpbasics.py' 
+    'zapwallettxes.py' 
+    'proxy_test.py' 
     'merkle_blocks.py'
-    'fundrawtransaction.py'
+    'fundrawtransaction.py' 
     'signrawtransactions.py'
-    'walletbackup.py'
-    'nodehandling.py'
-    'reindex.py'
+    'walletbackup.py' 
+    'key_import_export.py'  
+    'nodehandling.py' 
+    'reindex.py' 
     'decodescript.py'
     'disablewallet.py'
     'zcjoinsplit.py'
-    'zcjoinsplitdoublespend.py'
-    'getblocktemplate.py'
-    'bip65-cltv-p2p.py'
-    'bipdersig-p2p.py'
+    'zcjoinsplitdoublespend.py'              
+    'zkey_import_export.py'
+    # 'getblocktemplate.py'                     #disabled - due to masternode sync, and also need to be reworked to check for "coinbase_required_outputs"
+    # 'bip65-cltv-p2p.py'                       #currently not supported - this test is meant to exercise BIP65 (CHECKLOCKTIMEVERIFY)
+    # 'bipdersig-p2p.py'                        #currently not supported - this test is meant to exercise BIP66 (DER SIG)
+    # 'p2p-masternodes.py'                      #disabled - this test not fully implemented yet
 );
 testScriptsExt=(
     'getblocktemplate_longpoll.py'
     'getblocktemplate_proposals.py'
-    'pruning.py'
+    # 'pruning.py'                  # disabled for ANON. Failed because of the issue #1302 in zcash
     'forknotify.py'
-    'hardforkdetection.py'
-    'invalidateblock.py'
+    # 'hardforkdetection.py'        # disabled for ANON. Failed because of the issue #1302 in zcash
+    # 'invalidateblock.py'          # disabled for ANON. Failed because of the issue #1302 in zcash
     'keypool.py'
     'receivedby.py'
     'rpcbind_test.py'
-#   'script_test.py'
+    # 'script_test.py'              # requires create_block functionality that is not implemented for zcash blocks yet
     'smartfees.py'
     'maxblocksinflight.py'
-    'invalidblockrequest.py'
+    # 'invalidblockrequest.py'      # requires create_block functionality that is not implemented for zcash blocks yet
     'p2p-versionbits-warning.py'
-#    'forknotify.py'
-    'p2p-acceptblock.py'
+    # 'forknotify.py'
+    # 'p2p-acceptblock.py'          # requires create_block functionality that is not implemented for zcash blocks yet
 );
 
 if [ "x$ENABLE_ZMQ" = "x1" ]; then
   testScripts+=('zmq_test.py')
 fi
 
-if [ "x$ENABLE_PROTON" = "x1" ]; then
-  testScripts+=('proton_test.py')
-fi
+# disabled due to masternode sync, this test needs to be updated/reworked.
+# if [ "x$ENABLE_PROTON" = "x1" ]; then
+#   testScripts+=('proton_test.py')
+# fi
 
 extArg="-extended"
 passOn=${@#$extArg}
@@ -85,7 +91,7 @@ function runTestScript
 
     echo -e "=== Running testscript ${testName} ==="
 
-    if eval "$@" | sed 's/^/  /'
+    if eval "$@"
     then
         successCount=$(expr $successCount + 1)
         echo "--- Success: ${testName} ---"

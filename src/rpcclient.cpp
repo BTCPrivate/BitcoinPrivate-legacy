@@ -106,13 +106,19 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "z_listreceivedbyaddress", 1},
     { "z_getbalance", 1},
     { "z_gettotalbalance", 0},
+    { "z_gettotalbalance", 1},
+    { "z_gettotalbalance", 2},
     { "z_sendmany", 1},
     { "z_sendmany", 2},
     { "z_sendmany", 3},
     { "z_shieldcoinbase", 2},
+    { "z_shieldcoinbase", 3},
     { "z_getoperationstatus", 0},
     { "z_getoperationresult", 0},
     { "z_importkey", 2 },
+    { "z_importviewingkey", 2 },
+    { "z_getpaymentdisclosure", 1},
+    { "z_getpaymentdisclosure", 2}
 };
 
 class CRPCConvertTable

@@ -9,9 +9,7 @@
 #
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-import os
-import shutil
+from test_framework.util import assert_equal, start_node, connect_nodes
 
 # Create one-input, one-output, no-fee transaction:
 class MempoolCoinbaseTest(BitcoinTestFramework):
@@ -36,8 +34,8 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         return signresult["hex"]
 
     def run_test(self):
-        start_count = self.nodes[0].getblockcount()
-
+        # self.nodes[0].generate(105)
+        # self.sync_all()
         # Mine three blocks. After this, nodes[0] blocks
         # 101, 102, and 103 are spend-able.
         new_blocks = self.nodes[1].generate(4)
@@ -54,9 +52,9 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         # and make sure the mempool code behaves correctly.
         b = [ self.nodes[0].getblockhash(n) for n in range(102, 105) ]
         coinbase_txids = [ self.nodes[0].getblock(h)['tx'][0] for h in b ]
-        spend_101_raw = self.create_tx(coinbase_txids[0], node1_address, 10)
-        spend_102_raw = self.create_tx(coinbase_txids[1], node0_address, 10)
-        spend_103_raw = self.create_tx(coinbase_txids[2], node0_address, 10)
+        spend_101_raw = self.create_tx(coinbase_txids[0], node1_address, 50.0)
+        spend_102_raw = self.create_tx(coinbase_txids[1], node0_address, 50.0)
+        spend_103_raw = self.create_tx(coinbase_txids[2], node0_address, 50.0)
 
         # Broadcast and mine spend_102 and 103:
         spend_102_id = self.nodes[0].sendrawtransaction(spend_102_raw)
@@ -64,11 +62,12 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         self.nodes[0].generate(1)
 
         # Create 102_1 and 103_1:
-        spend_102_1_raw = self.create_tx(spend_102_id, node1_address, 10)
-        spend_103_1_raw = self.create_tx(spend_103_id, node1_address, 10)
+        spend_102_1_raw = self.create_tx(spend_102_id, node1_address, 50.0)
+        spend_103_1_raw = self.create_tx(spend_103_id, node1_address, 50.0)
 
         # Broadcast and mine 103_1:
         spend_103_1_id = self.nodes[0].sendrawtransaction(spend_103_1_raw)
+        [spend_103_1_id] # hush pyflakes
         self.nodes[0].generate(1)
 
         # ... now put spend_101 and spend_102_1 in memory pools:

@@ -45,6 +45,8 @@ public:
 
         ZCPAYMENT_ADDRRESS,
         ZCSPENDING_KEY,
+        ZCVIEWING_KEY,
+
 
         MAX_BASE58_TYPES
     };
@@ -53,6 +55,7 @@ public:
     const CMessageHeader::MessageStartChars& MessageStart() const { return pchMessageStart; }
     const std::vector<unsigned char>& AlertKey() const { return vAlertPubKey; }
     int GetDefaultPort() const { return nDefaultPort; }
+
 
     const CBlock& GenesisBlock() const { return genesis; }
     /** Make miner wait to have peers to avoid wasting work */
@@ -106,6 +109,8 @@ public:
     uint64_t LwmaHeight() const { return lwmaActivationHeight; };
     uint64_t LwmaAveragingWin() const { return lwmaAveragingWindow; };
 
+    bool isGrothActive(int nHeight) const;
+
 protected:
     CChainParams() {}
 
@@ -138,6 +143,9 @@ protected:
     uint64_t nEquihashParamsUpdate;
     unsigned int nEquihashNnew;
     unsigned int nEquihashKnew;
+
+    //Sapling
+    int saplingActivationBlock;
 
     // LWMA-1
     uint64_t lwmaActivationHeight;

@@ -1,41 +1,70 @@
-#ifndef _ZCNOTE_H_
-#define _ZCNOTE_H_
+#ifndef ZC_NOTE_H_
+#define ZC_NOTE_H_
 
 #include "uint256.h"
 #include "Zcash.h"
 #include "Address.hpp"
 #include "NoteEncryption.hpp"
 
+#include <array>
+#include <boost/optional.hpp>
+
 namespace libzcash {
 
-class Note {
+class BaseNote {
+protected:
+    uint64_t value_ = 0;
+public:
+    BaseNote() {}
+    BaseNote(uint64_t value) : value_(value) {};
+    virtual ~BaseNote() {};
+
+    inline uint64_t value() const { return value_; };
+};
+
+class Note : public BaseNote {
 public:
     uint256 a_pk;
-    uint64_t value;
     uint256 rho;
     uint256 r;
 
     Note(uint256 a_pk, uint64_t value, uint256 rho, uint256 r)
-        : a_pk(a_pk), value(value), rho(rho), r(r) {}
+          : BaseNote(value), a_pk(a_pk), rho(rho), r(r) {}
 
     Note();
+
+    virtual ~Note() {};
 
     uint256 cm() const;
     uint256 nullifier(const SpendingKey& a_sk) const;
 };
 
-class NotePlaintext {
+class BaseNotePlaintext {
+protected:
+    uint64_t value_ = 0;
+    std::array<unsigned char, ZC_MEMO_SIZE> memo_;
 public:
-    uint64_t value = 0;
+    BaseNotePlaintext() {}
+    BaseNotePlaintext(const BaseNote& note, std::array<unsigned char, ZC_MEMO_SIZE> memo)
+            : value_(note.value()), memo_(memo) {}
+    virtual ~BaseNotePlaintext() {}
+
+    inline uint64_t value() const { return value_; }
+    inline const std::array<unsigned char, ZC_MEMO_SIZE> & memo() const { return memo_; }
+};
+
+class NotePlaintext : public BaseNotePlaintext {
+public:
     uint256 rho;
     uint256 r;
-    boost::array<unsigned char, ZC_MEMO_SIZE> memo;
 
     NotePlaintext() {}
 
-    NotePlaintext(const Note& note, boost::array<unsigned char, ZC_MEMO_SIZE> memo);
+    NotePlaintext(const Note& note, std::array<unsigned char, ZC_MEMO_SIZE> memo);
 
     Note note(const PaymentAddress& addr) const;
+
+    virtual ~NotePlaintext() {}
 
     ADD_SERIALIZE_METHODS;
 
@@ -48,10 +77,10 @@ public:
             throw std::ios_base::failure("lead byte of NotePlaintext is not recognized");
         }
 
-        READWRITE(value);
+        READWRITE(value_);
         READWRITE(rho);
         READWRITE(r);
-        READWRITE(memo);
+        READWRITE(memo_);
     }
 
     static NotePlaintext decrypt(const ZCNoteDecryption& decryptor,
@@ -68,4 +97,4 @@ public:
 
 }
 
-#endif // _ZCNOTE_H_
+#endif // ZC_NOTE_H_

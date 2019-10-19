@@ -5,7 +5,7 @@
 #include "../util.h"
 #include "primitives/transaction.h"
 #include "zcash/JoinSplit.hpp"
-#include "libsnark/common/profiling.hpp"
+#include <snark/libsnark/common/profiling.hpp>
 
 using namespace libzcash;
 
@@ -13,10 +13,8 @@ int main(int argc, char **argv)
 {
     libsnark::start_profiling();
 
-    auto p = ZCJoinSplit::Unopened();
-    p->loadVerifyingKey((ZC_GetParamsDir() / "sprout-verifying.key").string());
-    p->setProvingKeyPath((ZC_GetParamsDir() / "sprout-proving.key").string());
-    p->loadProvingKey();
+    auto p = ZCJoinSplit::Prepared((ZC_GetParamsDir() / "sprout-verifying.key").string(),
+                                   (ZC_GetParamsDir() / "sprout-proving.key").string());
 
     // construct a proof.
 
@@ -24,7 +22,9 @@ int main(int argc, char **argv)
         uint256 anchor = ZCIncrementalMerkleTree().root();
         uint256 pubKeyHash;
 
-        JSDescription jsdesc(*p,
+        JSDescription jsdesc(
+                             false, // TODO parametrize it
+                             *p,
                              pubKeyHash,
                              anchor,
                              {JSInput(), JSInput()},
@@ -32,4 +32,6 @@ int main(int argc, char **argv)
                              0,
                              0);
     }
+
+    delete p; // not that it matters
 }

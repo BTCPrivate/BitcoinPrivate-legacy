@@ -2,13 +2,10 @@
 // Copyright (c) 2009-2013 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #ifndef BITCOIN_STREAMS_H
 #define BITCOIN_STREAMS_H
-
 #include "support/allocators/zeroafterfree.h"
 #include "serialize.h"
-
 #include <algorithm>
 #include <assert.h>
 #include <ios>
@@ -21,12 +18,64 @@
 #include <string.h>
 #include <utility>
 #include <vector>
+/** Double ended buffer combining vector and stream-like interfaces.
+ *
+ * >> and << read and write unformatted data using the above serialization templates.
+ * Fills with data in linear time; some stringstream implementations take N^2 time.
+ */
+
+template<typename Stream>
+class OverrideStreamTx
+{
+    Stream* stream;
+    const int nTxVersion;
+
+public:
+    OverrideStreamTx(Stream* stream_, int nTxVersion_) : stream(stream_) , nTxVersion(nTxVersion_){}
+
+    template<typename T>
+    OverrideStreamTx<Stream>& operator<<(const T& obj)
+    {
+        // Serialize to this stream
+        ::Serialize(*this, obj, GetType(), GetVersion());
+        return (*this);
+    }
+
+    template<typename T>
+    OverrideStreamTx<Stream>& operator>>(T&& obj)
+    {
+        // Unserialize from this stream
+        ::Unserialize(*this, obj, GetType(), GetVersion());
+        return (*this);
+    }
+
+    void write(const char* pch, size_t nSize)
+    {
+        stream->write(pch, nSize);
+    }
+
+    void read(char* pch, size_t nSize)
+    {
+        stream->read(pch, nSize);
+    }
+
+    int GetVersion() const { return stream->GetVersion(); }
+    int GetType() const { return stream->GetType(); }
+    int GetTxVersion() const { return nTxVersion; }
+};
+
+template<typename S>
+OverrideStreamTx<S> WithTxVersion(S* s, int nTxVersion)
+{
+    return OverrideStreamTx<S>(s, nTxVersion);
+}
 
 /** Double ended buffer combining vector and stream-like interfaces.
  *
  * >> and << read and write unformatted data using the above serialization templates.
  * Fills with data in linear time; some stringstream implementations take N^2 time.
  */
+
 template<typename SerializeType>
 class CBaseDataStream
 {
@@ -514,6 +563,9 @@ public:
     {
         fclose();
     }
+
+    int GetVersion() const { return nVersion; }
+    int GetType() const { return nType; }
 
     void fclose()
     {

@@ -2,7 +2,7 @@ dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 1)
 define(_CLIENT_VERSION_MINOR, 0)
-define(_CLIENT_VERSION_REVISION, 15)
+define(_CLIENT_VERSION_REVISION, 16)
 define(_CLIENT_VERSION_BUILD, 50)
 define(_ZC_BUILD_VAL, m4_if(m4_eval(_CLIENT_VERSION_BUILD < 25), 1, m4_incr(_CLIENT_VERSION_BUILD), m4_eval(_CLIENT_VERSION_BUILD < 50), 1, m4_eval(_CLIENT_VERSION_BUILD - 24), m4_eval(_CLIENT_VERSION_BUILD == 50), 1, , m4_eval(_CLIENT_VERSION_BUILD - 50)))
 define(_CLIENT_VERSION_SUFFIX, m4_if(m4_eval(_CLIENT_VERSION_BUILD < 25), 1, _CLIENT_VERSION_REVISION-beta$1, m4_eval(_CLIENT_VERSION_BUILD < 50), 1, _CLIENT_VERSION_REVISION-rc$1, m4_eval(_CLIENT_VERSION_BUILD == 50), 1, _CLIENT_VERSION_REVISION, _CLIENT_VERSION_REVISION-$1)))
@@ -24,7 +24,7 @@ dnl faketime breaks configure and is only needed for make. Disable it here.
 unset FAKETIME
 
 dnl Automake init set-up and checks
-AM_INIT_AUTOMAKE([no-define subdir-objects foreign])
+AM_INIT_AUTOMAKE([no-define subdir-objects foreign tar-pax])
 
 dnl faketime messes with timestamps and causes configure to be re-run.
 dnl --disable-maintainer-mode can be used to bypass this.
@@ -94,12 +94,6 @@ AC_ARG_ENABLE([mining],
   [enable mining (default is yes)])],
   [enable_mining=$enableval],
   [enable_mining=yes])
-
-AC_ARG_ENABLE([rust],
-  [AS_HELP_STRING([--enable-rust],
-  [enable rust (default is yes)])],
-  [enable_rust=$enableval],
-  [enable_rust=yes])
 
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
@@ -343,6 +337,8 @@ case $host in
 
      AX_CHECK_LINK_FLAG([[-Wl,-headerpad_max_install_names]], [LDFLAGS="$LDFLAGS -Wl,-headerpad_max_install_names"])
      CPPFLAGS="$CPPFLAGS -DMAC_OSX"
+     OBJCXXFLAGS="$CXXFLAGS"
+
      ;;
    *linux*)
      TARGET_OS=linux
@@ -784,36 +780,72 @@ AC_CHECK_LIB([gmp],[[__gmpn_sub_n]],GMP_LIBS=-lgmp, [AC_MSG_ERROR(libgmp missing
 AC_CHECK_HEADER([gmpxx.h],,AC_MSG_ERROR(libgmpxx headers missing))
 AC_CHECK_LIB([gmpxx],[main],GMPXX_LIBS=-lgmpxx, [AC_MSG_ERROR(libgmpxx missing)])
 
-# libsnark header layout is broken unless cpp's -I is passed with the
-# libsnark directory, so for now we use this hideous workaround:
-echo 'Hunting for libsnark include directory...'
-[LIBSNARK_INCDIR="$(echo "$CPPFLAGS" | sed 's,^.*-I\([^ ]*/include\).*$,\1/libsnark,')"]
-if test -d "$LIBSNARK_INCDIR"; then
-   echo "Found libsnark include directory: $LIBSNARK_INCDIR"
+
+RUST_LIBS="-lrustzcash"
+case $host in
+  *mingw*)
+    ;;
+  *)
+    RUST_LIBS="$RUST_LIBS -ldl"
+    ;;
+esac
+
+dnl Check for OpenMP support
+AX_OPENMP(
+  [AC_DEFINE(HAVE_OPENMP, 1, [Define if OpenMP is enabled])
+   AM_CONDITIONAL([HAVE_OPENMP], [true])
+   CPPFLAGS="$CPPFLAGS -DMULTICORE"
+   CXXFLAGS="$CXXFLAGS $OPENMP_CXXFLAGS"],
+  [AC_MSG_WARN([OpenMP not supported, disabling multithreading])
+   AC_DEFINE(HAVE_OPENMP, 0, [Define if OpenMP is enabled])
+   AM_CONDITIONAL([HAVE_OPENMP], [false])])
+
+dnl detect aarch64
+case $host in
+  aarch64*)
+     AM_CONDITIONAL([IS_ARM64],[true])
+     ;;
+  *)
+     AM_CONDITIONAL([IS_ARM64],[false])
+     ;;
+esac
+
+# Gitian uses a config.site that sets depends_prefix, and then sets --prefix=/
+# build.sh just uses --prefix
+if test x$depends_prefix != x; then
+  LIBSNARK_DEPINST="$depends_prefix"
 else
-    AC_MSG_ERROR(libsnark include directory not found)
+  LIBSNARK_DEPINST="$prefix"
 fi
 
-CPPFLAGS="-I$LIBSNARK_INCDIR $CPPFLAGS"
+# Additional Zcash flags
+AX_CHECK_COMPILE_FLAG([-fwrapv],[CXXFLAGS="$CXXFLAGS -fwrapv"])
+AX_CHECK_COMPILE_FLAG([-fno-strict-aliasing],[CXXFLAGS="$CXXFLAGS -fno-strict-aliasing"])
+AX_CHECK_COMPILE_FLAG([-Wno-builtin-declaration-mismatch],[CXXFLAGS="$CXXFLAGS -Wno-builtin-declaration-mismatch"],,[[$CXXFLAG_WERROR]])
 
-# Now check for libsnark compilability using traditional autoconf tests:
-AC_CHECK_HEADER([libsnark/gadgetlib1/gadget.hpp],,AC_MSG_ERROR(libsnark headers missing))
-AC_CHECK_LIB([snark],[main],LIBSNARK_LIBS=-lsnark, [AC_MSG_ERROR(libsnark missing)], [-lgmpxx])
 
-RUST_LIBS=""
-if test x$enable_rust != xno; then
-  RUST_LIBS="-lrustzcash"
+if test x$BUILD_OS = xdarwin; then
+  AX_CHECK_COMPILE_FLAG([-Wno-undefined-var-template],[CXXFLAGS="$CXXFLAGS -Wno-undefined-var-template"],,[[$CXXFLAG_WERROR]])
 fi
 
-LIBZCASH_LIBS="-lsnark -lgmp -lgmpxx -lboost_system-mt -lcrypto -lsodium -fopenmp $RUST_LIBS"
+# # libsnark header layout is broken unless cpp's -I is passed with the
+# # libsnark directory, so for now we use this hideous workaround:
+# echo 'Hunting for libsnark include directory...'
+# [LIBSNARK_INCDIR="$(echo "$CPPFLAGS" | sed 's,^.*-I\([^ ]*/include\).*$,\1/libsnark,')"]
+# if test -d "$LIBSNARK_INCDIR"; then
+#    echo "Found libsnark include directory: $LIBSNARK_INCDIR"
+# else
+#     AC_MSG_ERROR(libsnark include directory not found)
+# fi
 
-CXXFLAGS_TEMP="$CXXFLAGS"
-LIBS_TEMP="$LIBS"
-CXXFLAGS="$CXXFLAGS $SSL_CFLAGS $CRYPTO_CFLAGS"
-LIBS="$LIBS $SSL_LIBS $CRYPTO_LIBS $GMP_LIBS $GMPXX_LIBS"
-AC_CHECK_HEADER([openssl/ec.h],, AC_MSG_ERROR(OpenSSL ec header missing),)
-CXXFLAGS="$CXXFLAGS_TEMP"
-LIBS="$LIBS_TEMP"
+# CPPFLAGS="-I$LIBSNARK_INCDIR $CPPFLAGS"
+
+# # # Now check for libsnark compilability using traditional autoconf tests:
+# AC_CHECK_HEADER([libsnark/gadgetlib1/gadget.hpp],,AC_MSG_ERROR(libsnark headers missing))
+# AC_CHECK_LIB([snark],[main],LIBSNARK_LIBS=-lsnark, [AC_MSG_ERROR(libsnark missing)], [-lgmpxx])
+
+# LIBZCASH_LIBS="-lgmp -lgmpxx -lboost_system-mt -lcrypto -lsodium $RUST_LIBS"
+LIBZCASH_LIBS="-lgmp -lgmpxx $BOOST_SYSTEM_LIB -lcrypto -lsodium $RUST_LIBS"
 
 AC_MSG_CHECKING([whether to build bitcoind])
 AM_CONDITIONAL([BUILD_BITCOIND], [test x$build_bitcoind = xyes])
@@ -878,16 +910,6 @@ AC_MSG_CHECKING([if mining should be enabled])
 if test x$enable_mining != xno; then
   AC_MSG_RESULT(yes)
   AC_DEFINE(ENABLE_MINING, 1, [Define to 1 to enable mining functions])
-
-else
-  AC_MSG_RESULT(no)
-fi
-
-dnl enable rust
-AC_MSG_CHECKING([if rust should be enabled])
-if test x$enable_rust != xno; then
-  AC_MSG_RESULT(yes)
-  AC_DEFINE(ENABLE_RUST, 1, [Define to 1 to enable Rust language dependent functions])
 
 else
   AC_MSG_RESULT(no)
@@ -981,7 +1003,7 @@ AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)
 AC_SUBST(GMP_LIBS)
 AC_SUBST(GMPXX_LIBS)
-AC_SUBST(LIBSNARK_LIBS)
+AC_SUBST(LIBSNARK_DEPINST)
 AC_SUBST(LIBZCASH_LIBS)
 AC_SUBST(PROTON_LIBS)
 AC_CONFIG_FILES([Makefile src/Makefile doc/man/Makefile share/setup.nsi src/test/buildenv.py])
@@ -1012,7 +1034,7 @@ unset PKG_CONFIG_LIBDIR
 PKG_CONFIG_LIBDIR="$PKGCONFIG_LIBDIR_TEMP"
 
 ac_configure_args="${ac_configure_args} --disable-shared --with-pic --with-bignum=no --enable-module-recovery"
-AC_CONFIG_SUBDIRS([src/secp256k1 src/univalue])
+AC_CONFIG_SUBDIRS([src/secp256k1 src/snark src/univalue])
 
 AC_OUTPUT
 
@@ -1026,3 +1048,24 @@ case $host in
      chmod 755 libtool
    ;;
 esac
+
+echo
+echo "Options used to compile and link:"
+echo "  with wallet   = $enable_wallet"
+echo "  with proton   = $use_proton"
+echo "  with zmq      = $use_zmq"
+echo "  with test     = $use_tests"
+echo "  debug enabled = $enable_debug"
+echo "  werror        = $enable_werror"
+echo
+echo "  target os     = $TARGET_OS"
+echo "  build os      = $BUILD_OS"
+echo
+echo "  CC            = $CC"
+echo "  CFLAGS        = $CFLAGS"
+echo "  CPPFLAGS      = $CPPFLAGS"
+echo "  CXX           = $CXX"
+echo "  CXXFLAGS      = $CXXFLAGS"
+echo "  LDFLAGS       = $LDFLAGS"
+echo "  ARFLAGS       = $ARFLAGS"
+echo

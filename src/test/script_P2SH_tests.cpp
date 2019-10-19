@@ -173,7 +173,7 @@ void BuildPKTransaction(const CScript& scriptPubKey, CKey signingKey, CKey pushK
 {
     CMutableTransaction txTo = BuildTransaction(CScript(), scriptPubKey);
 
-    uint256 hash = SignatureHash(scriptToSign, txTo, 0, SIGHASH_ALL);
+    uint256 hash = SignatureHash(scriptToSign, txTo, 0, SIGHASH_ALL | SIGHASH_FORKID);
 
     std::vector<unsigned char> vchSig;
     signingKey.Sign(hash, vchSig, 0);

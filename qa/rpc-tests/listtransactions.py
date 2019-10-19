@@ -6,7 +6,8 @@
 # Exercise the listtransactions API
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
+
+from decimal import Decimal
 
 
 def check_array_result(object_array, to_match, expected):
@@ -34,6 +35,10 @@ class ListTransactionsTest(BitcoinTestFramework):
 
     def run_test(self):
         # Simple send, 0 to 1:
+        self.nodes[1].generate(1)
+        self.sync_all()
+        self.nodes[0].generate(101)
+        self.sync_all()
         txid = self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 0.1)
         self.sync_all()
         check_array_result(self.nodes[0].listtransactions(),

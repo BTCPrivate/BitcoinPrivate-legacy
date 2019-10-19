@@ -1,6 +1,9 @@
 // Copyright (c) 2016 The Zcash developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#ifndef ZCASH_UTIL_TEST_H
+#define ZCASH_UTIL_TEST_H
+
 
 #include "wallet/wallet.h"
 #include "zcash/JoinSplit.hpp"
@@ -16,3 +19,5 @@ libzcash::Note GetNote(ZCJoinSplit& params,
 CWalletTx GetValidSpend(ZCJoinSplit& params,
                         const libzcash::SpendingKey& sk,
                         const libzcash::Note& note, CAmount value);
+
+#endif // ZCASH_UTIL_TEST_H

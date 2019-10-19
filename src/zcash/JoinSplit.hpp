@@ -1,5 +1,5 @@
-#ifndef _ZCJOINSPLIT_H_
-#define _ZCJOINSPLIT_H_
+#ifndef ZC_JOINSPLIT_H_
+#define ZC_JOINSPLIT_H_
 
 #include "Zcash.h"
 #include "Proof.hpp"
@@ -11,9 +11,17 @@
 #include "uint256.h"
 #include "uint252.h"
 
-#include <boost/array.hpp>
+#include <array>
 
 namespace libzcash {
+
+static constexpr size_t GROTH_PROOF_SIZE = (
+        48 + // π_A
+        96 + // π_B
+        48); // π_C
+
+typedef std::array<unsigned char, GROTH_PROOF_SIZE> GrothProof;
+typedef boost::variant<PHGRProof, GrothProof> SproutProof;
 
 class JSInput {
 public:
@@ -35,7 +43,7 @@ class JSOutput {
 public:
     PaymentAddress addr;
     uint64_t value;
-    boost::array<unsigned char, ZC_MEMO_SIZE> memo = {{0xF6}};  // 0xF6 is invalid UTF8 as per spec, rest of array is 0x00
+    std::array<unsigned char, ZC_MEMO_SIZE> memo = {{0xF6}};  // 0xF6 is invalid UTF8 as per spec, rest of array is 0x00
 
     JSOutput();
     JSOutput(PaymentAddress addr, uint64_t value) : addr(addr), value(value) { }
@@ -48,47 +56,47 @@ class JoinSplit {
 public:
     virtual ~JoinSplit() {}
 
-    static JoinSplit<NumInputs, NumOutputs>* Generate();
-    static JoinSplit<NumInputs, NumOutputs>* Unopened();
+    static void Generate(const std::string r1csPath,
+                         const std::string vkPath,
+                         const std::string pkPath);
+    static JoinSplit<NumInputs, NumOutputs>* Prepared(const std::string vkPath,
+                                                      const std::string pkPath);
     static uint256 h_sig(const uint256& randomSeed,
-                         const boost::array<uint256, NumInputs>& nullifiers,
-                         const uint256& pubKeyHash
+                         const std::array<uint256, NumInputs>& nullifiers,
+                         const uint256& joinSplitPubKey
                         );
 
-    // TODO: #789
-    virtual void setProvingKeyPath(std::string) = 0;
-    virtual void loadProvingKey() = 0;
-
-    virtual void saveProvingKey(std::string path) = 0;
-    virtual void loadVerifyingKey(std::string path) = 0;
-    virtual void saveVerifyingKey(std::string path) = 0;
-    virtual void saveR1CS(std::string path) = 0;
-
-    virtual ZCProof prove(
-        const boost::array<JSInput, NumInputs>& inputs,
-        const boost::array<JSOutput, NumOutputs>& outputs,
-        boost::array<Note, NumOutputs>& out_notes,
-        boost::array<ZCNoteEncryption::Ciphertext, NumOutputs>& out_ciphertexts,
+    // Compute nullifiers, macs, note commitments & encryptions, and SNARK proof
+    virtual SproutProof prove(
+        bool makeGrothProof,
+        const std::array<JSInput, NumInputs>& inputs,
+        const std::array<JSOutput, NumOutputs>& outputs,
+        std::array<Note, NumOutputs>& out_notes,
+        std::array<ZCNoteEncryption::Ciphertext, NumOutputs>& out_ciphertexts,
         uint256& out_ephemeralKey,
-        const uint256& pubKeyHash,
+        const uint256& joinSplitPubKey,
         uint256& out_randomSeed,
-        boost::array<uint256, NumInputs>& out_hmacs,
-        boost::array<uint256, NumInputs>& out_nullifiers,
-        boost::array<uint256, NumOutputs>& out_commitments,
+        std::array<uint256, NumInputs>& out_hmacs,
+        std::array<uint256, NumInputs>& out_nullifiers,
+        std::array<uint256, NumOutputs>& out_commitments,
         uint64_t vpub_old,
         uint64_t vpub_new,
         const uint256& rt,
-        bool computeProof = true
+        bool computeProof = true,
+            // For paymentdisclosure, we need to retrieve the esk.
+            // Reference as non-const parameter with default value leads to compile error.
+            // So use pointer for simplicity.
+        uint256 *out_esk = nullptr
     ) = 0;
 
     virtual bool verify(
-        const ZCProof& proof,
+        const PHGRProof& proof,
         ProofVerifier& verifier,
         const uint256& pubKeyHash,
         const uint256& randomSeed,
-        const boost::array<uint256, NumInputs>& hmacs,
-        const boost::array<uint256, NumInputs>& nullifiers,
-        const boost::array<uint256, NumOutputs>& commitments,
+        const std::array<uint256, NumInputs>& hmacs,
+        const std::array<uint256, NumInputs>& nullifiers,
+        const std::array<uint256, NumOutputs>& commitments,
         uint64_t vpub_old,
         uint64_t vpub_new,
         const uint256& rt
@@ -103,4 +111,4 @@ protected:
 typedef libzcash::JoinSplit<ZC_NUM_JS_INPUTS,
                             ZC_NUM_JS_OUTPUTS> ZCJoinSplit;
 
-#endif // _ZCJOINSPLIT_H_
+#endif // ZC_JOINSPLIT_H_

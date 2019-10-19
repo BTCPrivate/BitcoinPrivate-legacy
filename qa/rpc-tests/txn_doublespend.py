@@ -8,10 +8,9 @@
 #
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
+from test_framework.util import assert_equal, connect_nodes, \
+    sync_blocks, gather_inputs
 from decimal import Decimal
-import os
-import shutil
 
 class TxnMallTest(BitcoinTestFramework):
 
@@ -24,12 +23,32 @@ class TxnMallTest(BitcoinTestFramework):
         return super(TxnMallTest, self).setup_network(True)
 
     def run_test(self):
-        mining_reward = 10
+        # self.nodes[0].getnewaddress("")
+        # self.nodes[0].generate(25)
+        # self.sync_all()
+
+        # self.nodes[1].getnewaddress("")
+        # self.nodes[1].generate(25)
+        # self.sync_all()
+
+        # self.nodes[2].getnewaddress("")
+        # self.nodes[2].generate(25)
+        # self.sync_all()
+
+        # self.nodes[3].getnewaddress("")
+        # self.nodes[3].generate(125)
+        # self.sync_all()
+
+        mining_reward = Decimal("50.00")
+        mining_reward_2 = Decimal("50.00")
         starting_balance = mining_reward * 25
 
         for i in range(4):
+            # print('i: ', i)
+            # print('real: ', self.nodes[i].getbalance())
+            # print('expected', starting_balance)
             assert_equal(self.nodes[i].getbalance(), starting_balance)
-            self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
+            # self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
 
         # Coins are sent to node1_address
         node1_address = self.nodes[1].getnewaddress("")
@@ -62,7 +81,7 @@ class TxnMallTest(BitcoinTestFramework):
         # Node0's balance should be starting balance, plus mining_reward for another
         # matured block, minus (starting_balance - (mining_reward - 2)), minus 5, and minus transaction fees:
         expected = starting_balance
-        if self.options.mine_block: expected += mining_reward
+        if self.options.mine_block: expected += mining_reward_2
         expected += tx1["amount"] + tx1["fee"]
         expected += tx2["amount"] + tx2["fee"]
         assert_equal(self.nodes[0].getbalance(), expected)
@@ -77,7 +96,7 @@ class TxnMallTest(BitcoinTestFramework):
             assert_equal(tx2["confirmations"], 0)
 
         # Now give doublespend to miner:
-        mutated_txid = self.nodes[2].sendrawtransaction(doublespend["hex"])
+        self.nodes[2].sendrawtransaction(doublespend["hex"])
         # ... mine a block...
         self.nodes[2].generate(1)
 
@@ -93,10 +112,10 @@ class TxnMallTest(BitcoinTestFramework):
         # Both transactions should be conflicted
         assert_equal(tx1["confirmations"], -1)
         assert_equal(tx2["confirmations"], -1)
-
         # Node0's total balance should be starting balance, plus (mining_reward * 2) for
         # two more matured blocks, minus (starting_balance - (mining_reward - 2)) for the double-spend:
-        expected = starting_balance + (mining_reward * 2) - (starting_balance - (mining_reward - 2))
+        
+        expected = starting_balance + (mining_reward_2 * 2) - (starting_balance - (mining_reward - 2))
         assert_equal(self.nodes[0].getbalance(), expected)
         assert_equal(self.nodes[0].getbalance("*"), expected)
 

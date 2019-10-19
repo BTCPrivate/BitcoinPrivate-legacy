@@ -22,6 +22,7 @@
 #include "sodium.h"
 #include "miner.h"
 
+#include <array>
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -49,12 +50,14 @@ static int find_output(UniValue obj, int n) {
 }
 
 AsyncRPCOperation_shieldcoinbase::AsyncRPCOperation_shieldcoinbase(
+        CMutableTransaction contextualTx,
         std::vector<ShieldCoinbaseUTXO> inputs,
         std::string toAddress,
         CAmount fee,
         UniValue contextInfo) :
-        inputs_(inputs), fee_(fee), contextinfo_(contextInfo)
+        tx_(contextualTx), inputs_(inputs), fee_(fee), contextinfo_(contextInfo)
 {
+    assert(contextualTx.nVersion >= PHGR_TX_VERSION || contextualTx.nVersion == GROTH_TX_VERSION);  // transaction format version must support vjoinsplit
     if (fee < 0 || fee > MAX_MONEY) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Fee is out of range");
     }
@@ -63,12 +66,13 @@ AsyncRPCOperation_shieldcoinbase::AsyncRPCOperation_shieldcoinbase(
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Empty inputs");
     }
 
+
     //  Check the destination address is valid for this network i.e. not testnet being used on mainnet
     CZCPaymentAddress address(toAddress);
     try {
         tozaddr_ = address.Get();
     } catch (const std::runtime_error& e) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("runtime error: ") + e.what());
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid to address");
     }
 
     // Log the context info
@@ -279,11 +283,8 @@ void AsyncRPCOperation_shieldcoinbase::sign_send_raw_transaction(UniValue obj)
 
 
 UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInfo & info) {
-    uint256 anchor;
-    {
-        LOCK(cs_main);
-        anchor = pcoinsTip->GetBestAnchor();
-    }
+
+    uint256 anchor = pcoinsTip->GetBestAnchor();
 
     if (anchor.IsNull()) {
         throw std::runtime_error("anchor is null");
@@ -308,23 +309,26 @@ UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInf
             getId(),
             tx_.vjoinsplit.size(),
             FormatMoney(info.vpub_old), FormatMoney(info.vpub_new),
-            FormatMoney(info.vjsin[0].note.value), FormatMoney(info.vjsin[1].note.value),
+            FormatMoney(info.vjsin[0].note.value()), FormatMoney(info.vjsin[1].note.value()),
             FormatMoney(info.vjsout[0].value), FormatMoney(info.vjsout[1].value)
             );
 
     // Generate the proof, this can take over a minute.
-    boost::array<libzcash::JSInput, ZC_NUM_JS_INPUTS> inputs
+    std::array<libzcash::JSInput, ZC_NUM_JS_INPUTS> inputs
             {info.vjsin[0], info.vjsin[1]};
-    boost::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS> outputs
+    std::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS> outputs
             {info.vjsout[0], info.vjsout[1]};
-    #ifdef __LP64__ // required to build on MacOS due to size_t ambiguity errors
-    boost::array<uint64_t, ZC_NUM_JS_INPUTS> inputMap;
-    boost::array<uint64_t, ZC_NUM_JS_OUTPUTS> outputMap;
+#ifdef __APPLE__
+    std::array<uint64_t, ZC_NUM_JS_INPUTS> inputMap;
+    std::array<uint64_t, ZC_NUM_JS_OUTPUTS> outputMap;
     #else
-    boost::array<size_t, ZC_NUM_JS_INPUTS> inputMap;
-    boost::array<size_t, ZC_NUM_JS_OUTPUTS> outputMap;
+    std::array<size_t, ZC_NUM_JS_INPUTS> inputMap;
+    std::array<size_t, ZC_NUM_JS_OUTPUTS> outputMap;
     #endif
+
+    uint256 esk;
     JSDescription jsdesc = JSDescription::Randomized(
+            mtx.nVersion == GROTH_TX_VERSION,
             *pzcashParams,
             joinSplitPubKey_,
             anchor,
@@ -334,7 +338,8 @@ UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInf
             outputMap,
             info.vpub_old,
             info.vpub_new,
-            !this->testmode);
+            !this->testmode,
+            &esk);  // parameter expects pointer to esk, so pass in address
 
     {
         auto verifier = libzcash::ProofVerifier::Strict();

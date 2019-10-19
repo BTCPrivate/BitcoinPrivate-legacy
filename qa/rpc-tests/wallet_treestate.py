@@ -41,13 +41,13 @@ class WalletTreeStateTest (BitcoinTestFramework):
                 if status == "failed":
                     errormsg = results[0]['error']['message']
                 break
-        print('...returned status: {}'.format(status))
-        print('...error msg: {}'.format(errormsg))
+        # print('...returned status: {}'.format(status))
+        # print('...error msg: {}'.format(errormsg))
         assert_equal(in_status, status)
         if errormsg is not None:
             assert(in_errormsg is not None)
             assert_equal(in_errormsg in errormsg, True)
-            print('...returned error: {}'.format(errormsg))
+            # print('...returned error: {}'.format(errormsg))
 
     def run_test (self):
         print "Mining blocks..."
@@ -62,7 +62,7 @@ class WalletTreeStateTest (BitcoinTestFramework):
 
         # Spend coinbase utxos to create three notes of 9.99990000 each
         recipients = []
-        recipients.append({"address":myzaddr, "amount":Decimal('10.0') - Decimal('0.0001')})
+        recipients.append({"address":myzaddr, "amount":Decimal('50.0') - Decimal('0.0001')})
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
         self.wait_and_assert_operationid_status(myopid)
         self.sync_all()
@@ -81,7 +81,7 @@ class WalletTreeStateTest (BitcoinTestFramework):
 
         # Check balance
         resp = self.nodes[0].z_getbalance(myzaddr)
-        assert_equal(Decimal(resp), Decimal('9.9999') * 3 )
+        assert_equal(Decimal(resp), Decimal('49.9999') * 3 )
 
         # We want to test a real-world situation where during the time spent creating a transaction
         # with joinsplits, other transactions containing joinsplits have been mined into new blocks,
@@ -89,15 +89,15 @@ class WalletTreeStateTest (BitcoinTestFramework):
 
         # Tx 1 will change the treestate while Tx 2 containing chained joinsplits is still being generated
         recipients = []
-        recipients.append({"address":self.nodes[2].z_getnewaddress(), "amount":Decimal('10.0') - Decimal('0.0001')})
+        recipients.append({"address":self.nodes[2].z_getnewaddress(), "amount":Decimal('50.0') - Decimal('0.0001')})
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
         self.wait_and_assert_operationid_status(myopid)
-
+    
         # Tx 2 will consume all three notes, which must take at least two joinsplits.  This is regardless of
         # the z_sendmany implementation because there are only two inputs per joinsplit.
         recipients = []
         recipients.append({"address":self.nodes[2].z_getnewaddress(), "amount":Decimal('18')})
-        recipients.append({"address":self.nodes[2].z_getnewaddress(), "amount":Decimal('11.9997') - Decimal('0.0001')})
+        recipients.append({"address":self.nodes[2].z_getnewaddress(), "amount":Decimal('131.9997') - Decimal('0.0001')})
         myopid = self.nodes[0].z_sendmany(myzaddr, recipients)
 
         # Wait for Tx 2 to begin executing...

@@ -5,18 +5,19 @@
 
 # Test for -rpcbind, as well as -rpcallowip and -rpcconnect
 
-# Add python-bitcoinrpc to module search path:
+# Dependency: python-bitcoinrpc
+
+from test_framework.util import assert_equal, check_json_precision, \
+    initialize_chain, start_nodes, stop_nodes, wait_bitcoinds, \
+    bitcoind_processes, rpc_port
+from test_framework.authproxy import AuthServiceProxy
+from test_framework.netutil import addr_to_hex, get_bind_addrs, all_interfaces
+
 import os
 import sys
-
-import json
 import shutil
-import subprocess
 import tempfile
 import traceback
-
-from test_framework.util import *
-from test_framework.netutil import *
 
 def run_bind_test(tmpdir, allow_ips, connect_to, addresses, expected):
     '''
@@ -109,7 +110,7 @@ def main():
     parser.add_option("--nocleanup", dest="nocleanup", default=False, action="store_true",
                       help="Leave bitcoinds and test.* datadir on exit or error")
     parser.add_option("--srcdir", dest="srcdir", default="../../src",
-                      help="Source directory containing bitcoind/bitcoin-cli (default: %default%)")
+                      help="Source directory containing btcpd/btcp-cli (default: %default%)")
     parser.add_option("--tmpdir", dest="tmpdir", default=tempfile.mkdtemp(prefix="test"),
                       help="Root directory for datadirs")
     (options, args) = parser.parse_args()
@@ -119,7 +120,6 @@ def main():
     check_json_precision()
 
     success = False
-    nodes = []
     try:
         print("Initializing test directory "+options.tmpdir)
         if not os.path.isdir(options.tmpdir):

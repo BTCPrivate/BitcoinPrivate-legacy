@@ -8,20 +8,87 @@
 
 #include "amount.h"
 #include "random.h"
+#include "streams.h"
 #include "script/script.h"
 #include "serialize.h"
 #include "uint256.h"
 #include "consensus/consensus.h"
+#include "util.h"
+#include <array>
 
-#include <boost/array.hpp>
+#include <boost/variant.hpp>
 
 #include "zcash/NoteEncryption.hpp"
 #include "zcash/Zcash.h"
 #include "zcash/JoinSplit.hpp"
 #include "zcash/Proof.hpp"
 
+static const int32_t GROTH_TX_VERSION = 0xFFFFFFFD;
+static const int32_t PHGR_TX_VERSION = 2;
+static const int32_t TRANSPARENT_TX_VERSION = 1;
+static_assert(GROTH_TX_VERSION < MIN_OLD_TX_VERSION,
+              "Groth tx version must be lower than minimum");
+
+static_assert(PHGR_TX_VERSION >= MIN_OLD_TX_VERSION,
+              "PHGR tx version must not be lower than minimum");
+
+static_assert(TRANSPARENT_TX_VERSION >= MIN_OLD_TX_VERSION,
+              "TRANSPARENT tx version must not be lower than minimum");
+
+//Many static casts to int * of Tx nVersion (int32_t *) are performed. Verify at compile time that they are equivalent.
+static_assert(sizeof(int32_t) == sizeof(int), "int size differs from 4 bytes. This may lead to unexpected behaviors on static casts");
+
+template <typename Stream>
+class SproutProofSerializer : public boost::static_visitor<>
+{
+    Stream& s;
+    bool useGroth;
+    int nType;
+    int nVersion;
+public:
+    SproutProofSerializer(Stream& s, bool useGroth, int nType, int nVersion) : s(s), useGroth(useGroth), nType(nType), nVersion(nVersion) {}
+
+    void operator()(const libzcash::PHGRProof& proof) const
+    {
+        if (useGroth) {
+            throw std::ios_base::failure("Invalid Sprout proof for transaction format (expected GrothProof, found PHGRProof)");
+        }
+        ::Serialize(s, proof, nType, nVersion);
+    }
+
+    void operator()(const libzcash::GrothProof& proof) const
+    {
+        if (!useGroth) {
+            throw std::ios_base::failure("Invalid Sprout proof for transaction format (expected PHGRProof, found GrothProof)");
+        }
+        ::Serialize(s, proof, nType, nVersion);
+    }
+};
+
+template<typename Stream, typename T>
+inline void SerReadWriteSproutProof(Stream& s, const T& proof, bool useGroth, CSerActionSerialize ser_action, int nType, int nVersion)
+{
+    auto ps = SproutProofSerializer<Stream>(s, useGroth, nType, nVersion);
+    boost::apply_visitor(ps, proof);
+}
+
+template<typename Stream, typename T>
+inline void SerReadWriteSproutProof(Stream& s, T& proof, bool useGroth, CSerActionUnserialize ser_action, int nType, int nVersion)
+{
+    if (useGroth) {
+        libzcash::GrothProof grothProof;
+        ::Unserialize(s, grothProof, nType, nVersion);
+        proof = grothProof;
+    } else {
+        libzcash::PHGRProof pghrProof;
+        ::Unserialize(s, pghrProof, nType, nVersion);
+        proof = pghrProof;
+    }
+}
+
 class JSDescription
 {
+
 public:
     // These values 'enter from' and 'exit to' the value
     // pool, respectively.
@@ -38,14 +105,14 @@ public:
     // are derived from the secrets placed in the note
     // and the secret spend-authority key known by the
     // spender.
-    boost::array<uint256, ZC_NUM_JS_INPUTS> nullifiers;
+    std::array<uint256, ZC_NUM_JS_INPUTS> nullifiers;
 
     // Note commitments are introduced into the commitment
     // tree, blinding the public about the values and
     // destinations involved in the JoinSplit. The presence of
     // a commitment in the note commitment tree is required
     // to spend it.
-    boost::array<uint256, ZC_NUM_JS_OUTPUTS> commitments;
+    std::array<uint256, ZC_NUM_JS_OUTPUTS> commitments;
 
     // Ephemeral key
     uint256 ephemeralKey;
@@ -54,7 +121,7 @@ public:
     // These contain trapdoors, values and other information
     // that the recipient needs, including a memo field. It
     // is encrypted using the scheme implemented in crypto/NoteEncryption.cpp
-    boost::array<ZCNoteEncryption::Ciphertext, ZC_NUM_JS_OUTPUTS> ciphertexts = {{ {{0}} }};
+    std::array<ZCNoteEncryption::Ciphertext, ZC_NUM_JS_OUTPUTS> ciphertexts = {{ {{0}} }};
 
     // Random seed
     uint256 randomSeed;
@@ -62,57 +129,89 @@ public:
     // MACs
     // The verification of the JoinSplit requires these MACs
     // to be provided as an input.
-    boost::array<uint256, ZC_NUM_JS_INPUTS> macs;
+    std::array<uint256, ZC_NUM_JS_INPUTS> macs;
 
     // JoinSplit proof
     // This is a zk-SNARK which ensures that this JoinSplit is valid.
-    libzcash::ZCProof proof;
+    libzcash::SproutProof proof;
 
     JSDescription(): vpub_old(0), vpub_new(0) { }
 
-    JSDescription(ZCJoinSplit& params,
-            const uint256& pubKeyHash,
-            const uint256& rt,
-            const boost::array<libzcash::JSInput, ZC_NUM_JS_INPUTS>& inputs,
-            const boost::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS>& outputs,
-            CAmount vpub_old,
-            CAmount vpub_new,
-            bool computeProof = true // Set to false in some tests
-    );
+    static JSDescription getNewInstance(bool useGroth);
 
-    static JSDescription Randomized(
+    JSDescription(
+            bool makeGrothProof,
             ZCJoinSplit& params,
-            const uint256& pubKeyHash,
+            const uint256& joinSplitPubKey,
             const uint256& rt,
-            boost::array<libzcash::JSInput, ZC_NUM_JS_INPUTS>& inputs,
-            boost::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS>& outputs,
-            #ifdef __LP64__ // required to build on MacOS due to size_t ambiguity errors
-            boost::array<uint64_t, ZC_NUM_JS_INPUTS>& inputMap,
-            boost::array<uint64_t, ZC_NUM_JS_OUTPUTS>& outputMap,
-            #else
-            boost::array<size_t, ZC_NUM_JS_INPUTS>& inputMap,
-            boost::array<size_t, ZC_NUM_JS_OUTPUTS>& outputMap,
-            #endif
+            const std::array<libzcash::JSInput, ZC_NUM_JS_INPUTS>& inputs,
+            const std::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS>& outputs,
             CAmount vpub_old,
             CAmount vpub_new,
             bool computeProof = true, // Set to false in some tests
+            uint256 *esk = nullptr // payment disclosure
+    );
+
+    static JSDescription Randomized(
+            bool makeGrothProof,
+            ZCJoinSplit& params,
+            const uint256& joinSplitPubKey,
+            const uint256& rt,
+            std::array<libzcash::JSInput, ZC_NUM_JS_INPUTS>& inputs,
+            std::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS>& outputs,
+#ifdef __LP64__ // required to build on MacOS due to size_t ambiguity errors
+            std::array<uint64_t, ZC_NUM_JS_INPUTS>& inputMap,
+            std::array<uint64_t, ZC_NUM_JS_OUTPUTS>& outputMap,
+#else
+            std::array<size_t, ZC_NUM_JS_INPUTS>& inputMap,
+            std::array<size_t, ZC_NUM_JS_OUTPUTS>& outputMap,
+#endif
+            CAmount vpub_old,
+            CAmount vpub_new,
+            bool computeProof = true, // Set to false in some tests
+            uint256 *esk = nullptr, // payment disclosure
             std::function<int(int)> gen = GetRandInt
     );
+
 
     // Verifies that the JoinSplit proof is correct.
     bool Verify(
         ZCJoinSplit& params,
         libzcash::ProofVerifier& verifier,
-        const uint256& pubKeyHash
+        const uint256& joinSplitPubKey
     ) const;
 
     // Returns the calculated h_sig
-    uint256 h_sig(ZCJoinSplit& params, const uint256& pubKeyHash) const;
+    uint256 h_sig(ZCJoinSplit& params, const uint256& joinSplitPubKey) const;
 
-    ADD_SERIALIZE_METHODS;
+    size_t GetSerializeSize(int nType, int nVersion, int nTxVersion) const {
+        CSizeComputer s(nType, nVersion);
+        auto os = WithTxVersion(&s, nTxVersion);
+        NCONST_PTR(this)->SerializationOp(os, CSerActionSerialize(), nType, nVersion);
+        return s.size();
+    }
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    template<typename OverrideStreamTx>
+    void Serialize(OverrideStreamTx& s, int nType, int nVersion) const {
+        NCONST_PTR(this)->SerializationOp(s, CSerActionSerialize(), nType, nVersion);
+    }
+
+    template<typename OverrideStreamTx>
+    void Unserialize(OverrideStreamTx& s, int nType, int nVersion) {
+        SerializationOp(s, CSerActionUnserialize(), nType, nVersion);
+    }
+
+    template <typename OverrideStreamTx, typename Operation>
+    inline void SerializationOp(OverrideStreamTx& s, Operation ser_action, int nType, int nVersion) {
+        // Stream version (that is transaction version) is set by CTransaction and CMutableTransaction to
+        //  tx.nVersion
+        const int txVersion = s.GetTxVersion();
+
+        if( !(txVersion >= TRANSPARENT_TX_VERSION) && txVersion != GROTH_TX_VERSION) {
+            LogPrintf("============== JsDescription GetTxVersion: Invalid shielded tx version %d \n", txVersion);
+            throw std::ios_base::failure("Invalid shielded tx version (expected >=1 for PHGRProof or -3 for GrothProof)");
+        }
+        bool useGroth = (txVersion == GROTH_TX_VERSION);
         READWRITE(vpub_old);
         READWRITE(vpub_new);
         READWRITE(anchor);
@@ -121,7 +220,7 @@ public:
         READWRITE(ephemeralKey);
         READWRITE(randomSeed);
         READWRITE(macs);
-        READWRITE(proof);
+        ::SerReadWriteSproutProof(s, proof, useGroth, ser_action, nType, nVersion);
         READWRITE(ciphertexts);
     }
 
@@ -148,14 +247,14 @@ public:
 };
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
-class COutPoint
+class BaseOutPoint
 {
 public:
     uint256 hash;
     uint32_t n;
 
-    COutPoint() { SetNull(); }
-    COutPoint(uint256 hashIn, uint32_t nIn) { hash = hashIn; n = nIn; }
+    BaseOutPoint() { SetNull(); }
+    BaseOutPoint(uint256 hashIn, uint32_t nIn) { hash = hashIn; n = nIn; }
 
     ADD_SERIALIZE_METHODS;
 
@@ -168,21 +267,29 @@ public:
     void SetNull() { hash.SetNull(); n = (uint32_t) -1; }
     bool IsNull() const { return (hash.IsNull() && n == (uint32_t) -1); }
 
-    friend bool operator<(const COutPoint& a, const COutPoint& b)
+    friend bool operator<(const BaseOutPoint& a, const BaseOutPoint& b)
     {
         return (a.hash < b.hash || (a.hash == b.hash && a.n < b.n));
     }
 
-    friend bool operator==(const COutPoint& a, const COutPoint& b)
+    friend bool operator==(const BaseOutPoint& a, const BaseOutPoint& b)
     {
         return (a.hash == b.hash && a.n == b.n);
     }
 
-    friend bool operator!=(const COutPoint& a, const COutPoint& b)
+    friend bool operator!=(const BaseOutPoint& a, const BaseOutPoint& b)
     {
         return !(a == b);
-    }
 
+    }
+};
+
+/** An outpoint - a combination of a transaction hash and an index n into its vout */
+class COutPoint : public BaseOutPoint
+{
+public:
+    COutPoint() : BaseOutPoint() {};
+    COutPoint(uint256 hashIn, uint32_t nIn) : BaseOutPoint(hashIn, nIn) {};
     std::string ToString() const;
 };
 
@@ -323,10 +430,10 @@ public:
     typedef boost::array<unsigned char, 64> joinsplit_sig_t;
 
     // Transactions that include a list of JoinSplits are version 2.
-    static const int32_t MIN_CURRENT_VERSION = 1;
-    static const int32_t MAX_CURRENT_VERSION = 2;
+    static const int32_t MIN_OLD_VERSION = 1;
+    static const int32_t MAX_OLD_VERSION = PHGR_TX_VERSION;
 
-    static_assert(MIN_CURRENT_VERSION >= MIN_TX_VERSION,
+    static_assert(MIN_OLD_VERSION >= MIN_OLD_TX_VERSION,
                   "standard rule for tx version should be consistent with network rule");
 
     // The local variables are made const to prevent unintended modification
@@ -359,8 +466,9 @@ public:
         READWRITE(*const_cast<std::vector<CTxIn>*>(&vin));
         READWRITE(*const_cast<std::vector<CTxOut>*>(&vout));
         READWRITE(*const_cast<uint32_t*>(&nLockTime));
-        if (nVersion >= 2) {
-            READWRITE(*const_cast<std::vector<JSDescription>*>(&vjoinsplit));
+        if (nVersion >= PHGR_TX_VERSION || nVersion == GROTH_TX_VERSION) {
+            auto os = WithTxVersion(&s, static_cast<int>(this->nVersion));
+            ::SerReadWrite(os, *const_cast<std::vector<JSDescription>*>(&vjoinsplit), nType, nVersion, ser_action);
             if (vjoinsplit.size() > 0) {
                 READWRITE(*const_cast<uint256*>(&joinSplitPubKey));
                 READWRITE(*const_cast<joinsplit_sig_t*>(&joinSplitSig));
@@ -369,6 +477,8 @@ public:
         if (ser_action.ForRead())
             UpdateHash();
     }
+    template <typename Stream>
+    CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {}
 
     bool IsNull() const {
         return vin.empty() && vout.empty();
@@ -433,13 +543,18 @@ struct CMutableTransaction
         READWRITE(vin);
         READWRITE(vout);
         READWRITE(nLockTime);
-        if (nVersion >= 2) {
-            READWRITE(vjoinsplit);
+        if (nVersion >= PHGR_TX_VERSION || nVersion == GROTH_TX_VERSION) {
+            auto os = WithTxVersion(&s, static_cast<int>(this->nVersion));
+            ::SerReadWrite(os, vjoinsplit, nType, nVersion, ser_action);
             if (vjoinsplit.size() > 0) {
                 READWRITE(joinSplitPubKey);
                 READWRITE(joinSplitSig);
             }
         }
+    }
+    template <typename Stream>
+    CMutableTransaction(deserialize_type, Stream& s) {
+        Unserialize(s);
     }
 
     /** Compute the hash of this CMutableTransaction. This is computed on the

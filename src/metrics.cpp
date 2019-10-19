@@ -110,6 +110,36 @@ double GetLocalSolPS()
     return miningTimer.rate(solutionTargetChecks);
 }
 
+int EstimateNetHeightInner(int height, int64_t tipmediantime,
+                           int heightLastCheckpoint, int64_t timeLastCheckpoint,
+                           int64_t genesisTime, int64_t targetSpacing)
+{
+    // We average the target spacing with the observed spacing to the last
+    // checkpoint (either from below or above depending on the current height),
+    // and use that to estimate the current network height.
+    int medianHeight = height > CBlockIndex::nMedianTimeSpan ?
+                       height - (1 + ((CBlockIndex::nMedianTimeSpan - 1) / 2)) :
+                       height / 2;
+    double checkpointSpacing = medianHeight > heightLastCheckpoint ?
+                               (double (tipmediantime - timeLastCheckpoint)) / (medianHeight - heightLastCheckpoint) :
+                               (double (timeLastCheckpoint - genesisTime)) / heightLastCheckpoint;
+    double averageSpacing = (targetSpacing + checkpointSpacing) / 2;
+    int netheight = medianHeight + ((GetTime() - tipmediantime) / averageSpacing);
+    // Round to nearest ten to reduce noise
+    return ((netheight + 5) / 10) * 10;
+}
+
+int EstimateNetHeight(int height, int64_t tipmediantime, CChainParams chainParams)
+{
+    auto checkpointData = chainParams.Checkpoints();
+    return EstimateNetHeightInner(
+            height, tipmediantime,
+            Checkpoints::GetTotalBlocksEstimate(checkpointData),
+            checkpointData.nTimeLastCheckpoint,
+            chainParams.GenesisBlock().nTime,
+            chainParams.GetConsensus().nPowTargetSpacing);
+}
+
 void TriggerRefresh()
 {
     *nNextRefresh = GetTime();
@@ -378,6 +408,31 @@ int printInitMessage()
     return 2;
 }
 
+#ifdef WIN32
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+
+bool enableVTMode()
+{
+    // Set output mode to handle virtual terminal sequences
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        return false;
+    }
+
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(hOut, dwMode)) {
+        return false;
+    }
+    return true;
+}
+#endif
+
+
 void ThreadShowMetricsScreen()
 {
     // Make this thread recognisable as the metrics screen thread
@@ -389,6 +444,9 @@ void ThreadShowMetricsScreen()
     int64_t nRefresh = GetArg("-metricsrefreshtime", isTTY ? 1 : 600);
 
     if (isScreen) {
+#ifdef WIN32
+        enableVTMode();
+#endif
         // Clear screen
         std::cout << "\e[2J";
 
@@ -448,7 +506,14 @@ void ThreadShowMetricsScreen()
 
         if (isScreen) {
             // Explain how to exit
-            std::cout << "[" << _("Press Ctrl+C to exit") << "] [" << _("Set 'showmetrics=0' to hide") << "]" << std::endl;
+            //std::cout << "[" << _("Press Ctrl+C to exit") << "] [" << _("Set 'showmetrics=0' to hide") << "]" << std::endl;
+            std::cout << "[";
+#ifdef WIN32
+            std::cout << _("'btcp-cli.exe stop' to exit");
+#else
+            std::cout << _("Press Ctrl+C to exit");
+#endif
+            std::cout << "] [" << _("Set 'showmetrics=0' to hide") << "]" << std::endl;
         } else {
             // Print delineator
             std::cout << "----------------------------------------" << std::endl;

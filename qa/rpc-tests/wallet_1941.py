@@ -6,12 +6,13 @@
 # This is a regression test for #1941.
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-from time import *
+from test_framework.util import assert_equal, initialize_chain_clean, \
+    initialize_datadir, start_nodes, start_node, connect_nodes_bi, \
+    bitcoind_processes, wait_and_assert_operationid_status
 
-import sys
+from decimal import Decimal
 
-starttime = 1388534400
+starttime = 1535569200
 
 class Wallet1941RegressionTest (BitcoinTestFramework):
 
@@ -39,30 +40,6 @@ class Wallet1941RegressionTest (BitcoinTestFramework):
         connect_nodes_bi(self.nodes, 0, 1)
         self.sync_all()
 
-    def wait_and_assert_operationid_status(self, myopid, in_status='success', in_errormsg=None):
-        print('waiting for async operation {}'.format(myopid))
-        opids = []
-        opids.append(myopid)
-        timeout = 300
-        status = None
-        errormsg = None
-        for x in xrange(1, timeout):
-            results = self.nodes[0].z_getoperationresult(opids)
-            if len(results)==0:
-                sleep(1)
-            else:
-                status = results[0]["status"]
-                if status == "failed":
-                    errormsg = results[0]['error']['message']
-                break
-        print('...returned status: {}'.format(status))
-        print('...error msg: {}'.format(errormsg))
-        assert_equal(in_status, status)
-        if errormsg is not None:
-            assert(in_errormsg is not None)
-            assert_equal(in_errormsg in errormsg, True)
-            print('...returned error: {}'.format(errormsg))
-
     def run_test (self):
         print "Mining blocks..."
 
@@ -74,9 +51,9 @@ class Wallet1941RegressionTest (BitcoinTestFramework):
 
         # Send 10 coins to our zaddr.
         recipients = []
-        recipients.append({"address":myzaddr, "amount":Decimal('10.0') - Decimal('0.0001')})
+        recipients.append({"address":myzaddr, "amount":Decimal('50.00') - Decimal('0.0001')})
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
-        self.wait_and_assert_operationid_status(myopid)
+        wait_and_assert_operationid_status(self.nodes[0], myopid)
         self.nodes[0].generate(1)
 
         # Ensure the block times of the latest blocks exceed the variability
@@ -89,7 +66,7 @@ class Wallet1941RegressionTest (BitcoinTestFramework):
 
         # Confirm the balance on node 0.
         resp = self.nodes[0].z_getbalance(myzaddr)
-        assert_equal(Decimal(resp), Decimal('10.0') - Decimal('0.0001'))
+        assert_equal(Decimal(resp), Decimal('50.00') - Decimal('0.0001'))
 
         # Export the key for the zaddr from node 0.
         key = self.nodes[0].z_exportkey(myzaddr)
@@ -116,7 +93,7 @@ class Wallet1941RegressionTest (BitcoinTestFramework):
         # Confirm that the balance on node 1 is valid now (node 1 must
         # have rescanned)
         resp = self.nodes[1].z_getbalance(myzaddr)
-        assert_equal(Decimal(resp), Decimal('10.0') - Decimal('0.0001'))
+        assert_equal(Decimal(resp), Decimal('50.00') - Decimal('0.0001'))
 
 
 if __name__ == '__main__':

@@ -19,10 +19,10 @@
 #include "zcash/IncrementalMerkleTree.hpp"
 #include "zcash/util.h"
 
-#include "libsnark/common/default_types/r1cs_ppzksnark_pp.hpp"
-#include "libsnark/zk_proof_systems/ppzksnark/r1cs_ppzksnark/r1cs_ppzksnark.hpp"
-#include "libsnark/gadgetlib1/gadgets/hashes/sha256/sha256_gadget.hpp"
-#include "libsnark/gadgetlib1/gadgets/merkle_tree/merkle_tree_check_read_gadget.hpp"
+#include <libsnark/common/default_types/r1cs_ppzksnark_pp.hpp>
+#include <libsnark/zk_proof_systems/ppzksnark/r1cs_ppzksnark/r1cs_ppzksnark.hpp>
+#include <libsnark/gadgetlib1/gadgets/hashes/sha256/sha256_gadget.hpp>
+#include <libsnark/gadgetlib1/gadgets/merkle_tree/merkle_tree_check_read_gadget.hpp>
 
 #include <boost/foreach.hpp>
 
@@ -146,7 +146,7 @@ void test_tree(
                     size_t path_index = convertVectorToInt(path.index);
 
                     commitment.bits.fill_with_bits(pb, bit_vector(commitment_bv));
-                    positions.fill_with_bits_of_ulong(pb, path_index);
+                    positions.fill_with_bits_of_uint64(pb, path_index);
 
                     authvars.generate_r1cs_witness(path_index, path.authentication_path);
                     auth.generate_r1cs_witness();

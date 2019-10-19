@@ -1,7 +1,7 @@
 Bitcoin Private
 ----------------
 
-**Bitcoin Private v1.0.15**
+**Bitcoin Private v1.0.16**
 
 P2P Port: 7933
 
@@ -51,11 +51,11 @@ rpcallowip=127.0.0.1
 Get backup chain parameters (this will speed up syncing and is optional)
 (Ideally this step would be skipped to ensure integrity throughout the network)
 (However, this is a backup from the official Electrumx server 29th September 2019)
-``` 
-cd ~/.btcprivate 
-wget https://params.btcprivate.org/chainstate.tar.gz 
-tar -zxvf chainstate.tar.gz 
-cd ~/BitcoinPrivate 
+```
+cd ~/.btcprivate
+wget https://params.btcprivate.org/chainstate.tar.gz
+tar -zxvf chainstate.tar.gz
+cd ~/BitcoinPrivate
 ```
 
 Run:

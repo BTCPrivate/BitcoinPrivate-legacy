@@ -5,8 +5,11 @@
 
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-from time import *
+from test_framework.util import assert_equal, start_node, \
+    start_nodes, connect_nodes_bi, bitcoind_processes
+
+import time
+from decimal import Decimal
 
 class WalletNullifiersTest (BitcoinTestFramework):
 
@@ -19,20 +22,25 @@ class WalletNullifiersTest (BitcoinTestFramework):
         myzaddr0 = self.nodes[0].z_getnewaddress()
 
         # send node 0 taddr to zaddr to get out of coinbase
-        mytaddr = self.nodes[0].getnewaddress();
+        mytaddr = self.nodes[0].getnewaddress()
+
+        # self.nodes[0].generate(101)
+        self.nodes[0].sendtoaddress(mytaddr, "11")
+        self.nodes[0].generate(1)
+
         recipients = []
-        recipients.append({"address":myzaddr0, "amount":Decimal('10.0')-Decimal('0.0001')}) # utxo amount less fee
+        recipients.append({"address":myzaddr0, "amount":Decimal('11.00')-Decimal('0.0001')}) # utxo amount less fee
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
 
         opids = []
         opids.append(myopid)
 
-        timeout = 120
+        timeout = 300
         status = None
         for x in xrange(1, timeout):
             results = self.nodes[0].z_getoperationresult(opids)
             if len(results)==0:
-                sleep(1)
+                time.sleep(1)
             else:
                 status = results[0]["status"]
                 assert_equal("success", status)
@@ -68,12 +76,12 @@ class WalletNullifiersTest (BitcoinTestFramework):
         opids = []
         opids.append(myopid)
 
-        timeout = 120
+        timeout = 300
         status = None
         for x in xrange(1, timeout):
             results = self.nodes[0].z_getoperationresult(opids)
             if len(results)==0:
-                sleep(1)
+                time.sleep(1)
             else:
                 status = results[0]["status"]
                 assert_equal("success", status)
@@ -100,12 +108,12 @@ class WalletNullifiersTest (BitcoinTestFramework):
         opids = []
         opids.append(myopid)
 
-        timeout = 120
+        timeout = 300
         status = None
         for x in xrange(1, timeout):
             results = self.nodes[2].z_getoperationresult(opids)
             if len(results)==0:
-                sleep(1)
+                time.sleep(1)
             else:
                 status = results[0]["status"]
                 assert_equal("success", status)
@@ -141,16 +149,17 @@ class WalletNullifiersTest (BitcoinTestFramework):
         opids = []
         opids.append(myopid)
 
-        timeout = 120
+        timeout = 300
         status = None
         for x in xrange(1, timeout):
             results = self.nodes[1].z_getoperationresult(opids)
             if len(results)==0:
-                sleep(1)
+                time.sleep(1)
             else:
                 status = results[0]["status"]
                 assert_equal("success", status)
                 mytxid = results[0]["result"]["txid"]
+                [mytxid] # hush pyflakes
                 break
 
         self.sync_all()
@@ -165,6 +174,57 @@ class WalletNullifiersTest (BitcoinTestFramework):
         zaddrremaining2 = zaddrremaining - zsendmany3notevalue - zsendmanyfee
         assert_equal(self.nodes[1].z_getbalance(myzaddr), zaddrremaining2)
         assert_equal(self.nodes[2].z_getbalance(myzaddr), zaddrremaining2)
+        # Test viewing keys
+        # 285.9375 = 25 * 11.4375
+        node3mined = Decimal('1250.00')
+        assert_equal({k: Decimal(v) for k, v in self.nodes[3].z_gettotalbalance().items()}, {
+            'transparent': node3mined,
+            'private': zsendmany2notevalue,
+            'masternode_collaterals': 0.00,
+            'immature_balance': Decimal('1250.00000000'),
+            'total': node3mined + zsendmany2notevalue,
+            
+        })
+
+        # add node 1 address and node 2 viewing key to node 3
+        myzvkey = self.nodes[2].z_exportviewingkey(myzaddr)
+        self.nodes[3].importaddress(mytaddr1)
+        self.nodes[3].z_importviewingkey(myzvkey)
+
+        # Check the address has been imported
+        assert_equal(myzaddr in self.nodes[3].z_listaddresses(), False)
+        assert_equal(myzaddr in self.nodes[3].z_listaddresses(True), True)
+
+        # Node 3 should see the same received notes as node 2
+        assert_equal(
+            self.nodes[2].z_listreceivedbyaddress(myzaddr),
+            self.nodes[3].z_listreceivedbyaddress(myzaddr))
+
+        # Node 3's balances should be unchanged without explicitly requesting
+        # to include watch-only balances
+        assert_equal({k: Decimal(v) for k, v in self.nodes[3].z_gettotalbalance().items()}, {
+            'transparent': node3mined,
+            'private': zsendmany2notevalue,
+            'masternode_collaterals': 0.00,
+            'immature_balance': Decimal('1250.00000000'),
+            'total': node3mined + zsendmany2notevalue,
+        })
+
+        # Wallet can't cache nullifiers for notes received by addresses it only has a
+        # viewing key for, and therefore can't detect spends. So it sees a balance
+        # corresponding to the sum of all notes the address received.
+        # TODO: Fix this during the Sapling upgrade (via #2277)
+        assert_equal({k: Decimal(v) for k, v in self.nodes[3].z_gettotalbalance(1, True).items()}, {
+            'transparent': node3mined + Decimal('1.0'),
+            'private': zsendmany2notevalue + zsendmanynotevalue + zaddrremaining + zaddrremaining2,
+            'masternode_collaterals': 0.00,
+            'immature_balance': Decimal('1250.00000000'),
+            'total': node3mined + Decimal('1.0') + zsendmany2notevalue + zsendmanynotevalue + zaddrremaining + zaddrremaining2,
+        })
+
+        # Check individual balances reflect the above
+        assert_equal(self.nodes[3].z_getbalance(mytaddr1), Decimal('1.0'))
+        assert_equal(self.nodes[3].z_getbalance(myzaddr), zsendmanynotevalue + zaddrremaining + zaddrremaining2)
 
 if __name__ == '__main__':
     WalletNullifiersTest().main ()

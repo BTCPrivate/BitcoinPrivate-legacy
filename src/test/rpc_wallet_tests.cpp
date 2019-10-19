@@ -250,6 +250,18 @@ BOOST_AUTO_TEST_CASE(rpc_wallet)
     }
     BOOST_CHECK(!notFound);
 
+     /*********************************
+    *       listaddresses
+    *********************************/
+    BOOST_CHECK_NO_THROW(retValue = CallRPC("listaddresses"));
+    arr = retValue.get_array();
+    BOOST_CHECK_EQUAL(4, arr.size());
+    notFound = true;
+    for (auto a : arr.getValues()) {
+        notFound &= CBitcoinAddress(a.get_str()).Get() != demoAddress.Get();
+    }
+    BOOST_CHECK(!notFound);
+
     /*********************************
      * 	     fundrawtransaction
      *********************************/
@@ -1277,6 +1289,13 @@ BOOST_AUTO_TEST_CASE(rpc_z_shieldcoinbase_parameters)
             "tnpoQJVnYBZZqkFadj2bJJLThNCxbADGB5gSGeYTAGGrT5tejsxY9Zc1BtY8nnHmZkB "
             "21000001"
             ), runtime_error);
+
+    // invalid limit, must be at least 0
+    BOOST_CHECK_THROW(CallRPC("z_shieldcoinbase "
+    "tmRr6yJonqGK23UVhrKuyvTpF8qxQQjKigJ "
+    "tnpoQJVnYBZZqkFadj2bJJLThNCxbADGB5gSGeYTAGGrT5tejsxY9Zc1BtY8nnHmZkB "
+    "100 -1"
+    ), runtime_error);
 
     // Test constructor of AsyncRPCOperation_sendmany
     std::string testnetzaddr = "ztjiDe569DPNbyTE6TSdJTaSDhoXEHLGvYoUnBU1wfVNU52TEyT6berYtySkd21njAeEoh8fFJUT42kua9r8EnhBaEKqCpP";

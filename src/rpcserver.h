@@ -18,7 +18,7 @@
 
 #include <boost/function.hpp>
 
-#include <univalue.h>
+#include "univalue/include/univalue.h"
 
 class AsyncRPCQueue;
 class CRPCCommand;
@@ -279,6 +279,8 @@ extern UniValue getblocksubsidy(const UniValue& params, bool fHelp);
 
 extern UniValue z_exportkey(const UniValue& params, bool fHelp); // in rpcdump.cpp
 extern UniValue z_importkey(const UniValue& params, bool fHelp); // in rpcdump.cpp
+extern UniValue z_importviewingkey(const UniValue& params, bool fHelp); // in rpcdump.cpp
+extern UniValue z_exportviewingkey(const UniValue& params, bool fHelp); // in rpcdump.cpp
 extern UniValue z_getnewaddress(const UniValue& params, bool fHelp); // in rpcwallet.cpp
 extern UniValue z_listaddresses(const UniValue& params, bool fHelp); // in rpcwallet.cpp
 extern UniValue z_exportwallet(const UniValue& params, bool fHelp); // in rpcdump.cpp
@@ -292,6 +294,10 @@ extern UniValue z_getoperationstatus(const UniValue& params, bool fHelp); // in 
 extern UniValue z_getoperationresult(const UniValue& params, bool fHelp); // in rpcwallet.cpp
 extern UniValue z_listoperationids(const UniValue& params, bool fHelp); // in rpcwallet.cpp
 extern UniValue z_validateaddress(const UniValue& params, bool fHelp); // in rpcmisc.cpp
+extern UniValue z_getpaymentdisclosure(const UniValue& params, bool fHelp); // in rpcdisclosure.cpp
+extern UniValue z_validatepaymentdisclosure(const UniValue &params, bool fHelp); // in rpcdisclosure.cpp
+
+extern UniValue listaddresses(const UniValue& params, bool fHelp); // in rpcwallet.cpp
 
 bool StartRPC();
 void InterruptRPC();

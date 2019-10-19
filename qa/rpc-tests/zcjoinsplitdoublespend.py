@@ -5,11 +5,10 @@
 #
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-from decimal import Decimal
-import os
-import shutil
-import sys
+from test_framework.authproxy import JSONRPCException
+from test_framework.util import assert_equal, connect_nodes, \
+    gather_inputs, sync_blocks
+
 import time
 
 class JoinSplitTest(BitcoinTestFramework):
@@ -41,9 +40,20 @@ class JoinSplitTest(BitcoinTestFramework):
         assert_equal(self.cannot_joinsplit(node, txn), True)
 
     def run_test(self):
-        # All nodes should start with 250 BTC:
-        starting_balance = 250
+        # All nodes should start with 25*50.00 BTC:
+        # self.nodes[0].generate(25)
+        # self.sync_all()
+        # self.nodes[1].generate(25)
+        # self.sync_all()
+        # self.nodes[2].generate(25)
+        # self.sync_all()
+        # self.nodes[3].generate(125)
+        # self.sync_all()
+
+        # self.nodes[0].generate(25)
+        starting_balance = 25 * 50.00
         for i in range(4):
+            # print('i: ', i)
             assert_equal(self.nodes[i].getbalance(), starting_balance)
             self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
         
@@ -54,9 +64,9 @@ class JoinSplitTest(BitcoinTestFramework):
 
         pool = [0, 1, 2, 3]
         for i in range(4):
-            (total_in, inputs) = gather_inputs(self.nodes[i], 40)
+            (total_in, inputs) = gather_inputs(self.nodes[i], 4 * 50.00)
             pool[i] = self.nodes[i].createrawtransaction(inputs, {})
-            pool[i] = self.nodes[i].zcrawjoinsplit(pool[i], {}, {zcaddress:39.99}, 39.99, 0)
+            pool[i] = self.nodes[i].zcrawjoinsplit(pool[i], {}, {zcaddress:199.99}, 199.99, 0)
             signed = self.nodes[i].signrawtransaction(pool[i]["rawtxn"])
 
             # send the tx to both halves of the network
@@ -90,25 +100,25 @@ class JoinSplitTest(BitcoinTestFramework):
         # Create joinsplit {A, B}->{*}
         joinsplit_AB = self.nodes[0].zcrawjoinsplit(blank_tx,
                                                {pool[0] : zcsecretkey, pool[1] : zcsecretkey},
-                                               {zcaddress:(39.99*2)-0.01},
+                                               {zcaddress:(199.99*2)-0.01},
                                                0, 0.01)
 
         # Create joinsplit {B, C}->{*}
         joinsplit_BC = self.nodes[0].zcrawjoinsplit(blank_tx,
                                                {pool[1] : zcsecretkey, pool[2] : zcsecretkey},
-                                               {zcaddress:(39.99*2)-0.01},
+                                               {zcaddress:(199.99*2)-0.01},
                                                0, 0.01)
 
         # Create joinsplit {C, D}->{*}
         joinsplit_CD = self.nodes[0].zcrawjoinsplit(blank_tx,
                                                {pool[2] : zcsecretkey, pool[3] : zcsecretkey},
-                                               {zcaddress:(39.99*2)-0.01},
+                                               {zcaddress:(199.99*2)-0.01},
                                                0, 0.01)
 
         # Create joinsplit {A, D}->{*}
         joinsplit_AD = self.nodes[0].zcrawjoinsplit(blank_tx,
                                                {pool[0] : zcsecretkey, pool[3] : zcsecretkey},
-                                               {zcaddress:(39.99*2)-0.01},
+                                               {zcaddress:(199.99*2)-0.01},
                                                0, 0.01)
 
         # (a)    Node 0 will spend joinsplit AB, then attempt to

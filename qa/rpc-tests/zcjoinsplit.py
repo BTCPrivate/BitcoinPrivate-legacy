@@ -5,13 +5,12 @@
 #
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-from decimal import Decimal
-import os
-import shutil
-import sys
+from test_framework.util import assert_equal, start_node, \
+    gather_inputs, initialize_chain
+
 
 class JoinSplitTest(BitcoinTestFramework):
+
     def setup_network(self):
         self.nodes = []
         self.is_network_split = False
@@ -22,7 +21,7 @@ class JoinSplitTest(BitcoinTestFramework):
         zcsecretkey = zckeypair["zcsecretkey"]
         zcaddress = zckeypair["zcaddress"]
 
-        (total_in, inputs) = gather_inputs(self.nodes[0], 40)
+        (total_in, inputs) = gather_inputs(self.nodes[0], 50.00)
         protect_tx = self.nodes[0].createrawtransaction(inputs, {})
         joinsplit_result = self.nodes[0].zcrawjoinsplit(protect_tx, {}, {zcaddress:39.99}, 39.99, 0)
 
