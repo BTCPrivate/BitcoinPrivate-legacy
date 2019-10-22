@@ -110,15 +110,6 @@ public:
 class CZCPaymentAddress : public CZCEncoding<libzcash::PaymentAddress, CChainParams::ZCPAYMENT_ADDRRESS, libzcash::SerializedPaymentAddressSize> {
 protected:
     std::string PrependName(const std::string& s) const { return "payment address" + s; }
-public:
-    bool Set(const DATA_TYPE& addr);
-
-    DATA_TYPE Get() const;
-};
-
-class CZCPaymentAddress : public CZCEncoding<libzcash::PaymentAddress, CChainParams::ZCPAYMENT_ADDRRESS, libzcash::SerializedPaymentAddressSize> {
-protected:
-    std::string PrependName(const std::string& s) const { return "payment address" + s; }
 
 public:
     CZCPaymentAddress() {}
