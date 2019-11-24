@@ -13,7 +13,7 @@ SPROUT_VKEY_NAME='sprout-verifying.key'
 SAPLING_SPEND_NAME='sapling-spend.params'
 SAPLING_OUTPUT_NAME='sapling-output.params'
 SAPLING_SPROUT_GROTH16_NAME='sprout-groth16.params'
-SPROUT_URL="https://params.btcprivate.org" //TODO: Setup our own URL here or use ZCash
+SPROUT_URL="https://params.btcprivate.org"
 
 SHA256CMD="$(command -v sha256sum || echo shasum)"
 SHA256ARGS="$(command -v sha256sum >/dev/null || echo '-a 256')"
