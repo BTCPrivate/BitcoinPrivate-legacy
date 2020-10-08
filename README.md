@@ -1,5 +1,7 @@
 Bitcoin Private
 ----------------
+** 10/8/2020 - Current chain offline - New code and chain coming soon **
+
 
 **Bitcoin Private v1.0.15**
 
